@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Das Kartenspiel</title>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+  :root { --felt:#1f5f3f; --felt2:#174a31; --gold:#f2c14e; --text:#f4f1e8; --dim:#b9cbbf; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; color:var(--text); font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+         background:radial-gradient(ellipse at center, var(--felt) 0%, var(--felt2) 75%, #0f3322 100%);
+         display:flex; flex-direction:column; align-items:center; padding:16px; }
+  h1 { margin:6px 0 2px; font-size:26px; }
+  .sub { color:var(--dim); font-size:14px; margin-bottom:14px; text-align:center; }
+  .hidden { display:none !important; }
+  button { background:var(--gold); color:#2a2000; border:none; font-weight:800; font-size:16px; padding:12px 24px; border-radius:10px; cursor:pointer; }
+  button:disabled { opacity:.35; cursor:default; }
+  button.sec { background:rgba(0,0,0,.3); color:var(--text); }
+  input.txt { background:rgba(0,0,0,.3); border:2px solid rgba(255,255,255,.2); color:var(--text); font-size:17px; padding:11px 14px; border-radius:10px; outline:none; width:100%; }
+  input.txt:focus { border-color:var(--gold); }
+  .err { color:#ffb3b3; font-size:14px; min-height:20px; margin:8px 0; text-align:center; }
+
+  /* Lobby */
+  .lobby { width:min(100%, 380px); display:flex; flex-direction:column; gap:12px; }
+  .box { background:rgba(0,0,0,.22); border-radius:14px; padding:16px; display:flex; flex-direction:column; gap:10px; }
+  .box h3 { margin:0; font-size:15px; color:var(--dim); font-weight:600; }
+  .row { display:flex; gap:8px; }
+  #codeIn { text-transform:uppercase; letter-spacing:4px; font-weight:800; text-align:center; }
+
+  /* Spiel */
+  .roombar { display:flex; gap:10px; align-items:center; background:rgba(0,0,0,.25); padding:8px 14px; border-radius:30px; margin-bottom:14px; flex-wrap:wrap; justify-content:center; }
+  .roombar .code { font-size:22px; font-weight:800; letter-spacing:4px; color:var(--gold); }
+  .roombar button { padding:6px 12px; font-size:13px; border-radius:20px; }
+  .players { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:8px; width:min(100%, 680px); margin-bottom:18px; }
+  .player { background:rgba(0,0,0,.22); border:2px solid transparent; border-radius:12px; padding:10px 6px; text-align:center; transition:.2s; min-height:64px;
+            display:flex; flex-direction:column; justify-content:center; gap:4px; }
+  .player.active { border-color:var(--gold); background:rgba(242,193,78,.15); transform:translateY(-3px); }
+  .player .nm { font-weight:700; font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .player.me .nm::after { content:" (du)"; color:var(--gold); font-weight:400; font-size:12px; }
+  .player.free .nm { color:var(--dim); font-weight:400; }
+  .player .cnt { color:var(--dim); font-size:12px; }
+  .table { display:flex; gap:28px; align-items:center; justify-content:center; flex-wrap:wrap; margin-bottom:16px; }
+  .slot { display:flex; flex-direction:column; align-items:center; gap:8px; }
+  .slot .lbl { font-size:13px; color:var(--dim); }
+  .card { width:150px; height:215px; border-radius:14px; position:relative; perspective:800px; }
+  .card .inner { position:absolute; inset:0; transition:transform .5s; transform-style:preserve-3d; }
+  .card.flipped .inner { transform:rotateY(180deg); }
+  .face { position:absolute; inset:0; border-radius:14px; backface-visibility:hidden; display:flex; align-items:center; justify-content:center; box-shadow:0 6px 16px rgba(0,0,0,.35); }
+  .back { background:repeating-linear-gradient(45deg,#7a1f2b 0 10px,#8e2734 10px 20px); border:6px solid #f4f1e8; }
+  .back::after { content:"?"; font-size:56px; font-weight:800; color:rgba(244,241,232,.85); }
+  .front { transform:rotateY(180deg); background:#f4f1e8; color:#222; padding:16px; text-align:center; flex-direction:column; gap:10px; border:6px solid #fff; }
+  .front .emoji { font-size:46px; }
+  .front .txt { font-weight:800; font-size:19px; line-height:1.2; }
+  .deck { cursor:pointer; }
+  .deck .stack div { position:absolute; inset:0; border-radius:14px; background:#5e1720; border:6px solid #e4e0d4; }
+  .empty { border:2px dashed rgba(255,255,255,.35); border-radius:14px; width:150px; height:215px; display:flex; align-items:center; justify-content:center; color:var(--dim); font-size:13px; text-align:center; padding:10px; }
+  .pile { position:relative; width:150px; height:215px; }
+  .pile .card { position:absolute; inset:0; }
+  .status { font-size:18px; margin:4px 0 12px; text-align:center; min-height:26px; }
+  .status b { color:var(--gold); }
+  .btns { display:flex; gap:10px; margin-bottom:18px; flex-wrap:wrap; justify-content:center; }
+  .log { width:min(100%, 680px); background:rgba(0,0,0,.22); border-radius:12px; padding:10px 14px; max-height:180px; overflow:auto; font-size:14px; }
+  .log div { padding:3px 0; border-bottom:1px solid rgba(255,255,255,.07); }
+  .log div:last-child { border:none; }
+  .log .n { color:var(--gold); font-weight:700; }
+</style>
+</head>
+<body>
+  <h1>🃏 Das Kartenspiel</h1>
+  <div class="sub">Bis zu 4 Spieler · jeder auf seinem eigenen Gerät · ohne Anmeldung</div>
+
+  <!-- LOBBY -->
+  <div class="lobby" id="lobby">
+    <div class="box">
+      <h3>Dein Name</h3>
+      <input class="txt" id="nameIn" maxlength="14" placeholder="z. B. Ischan">
+    </div>
+    <div class="box">
+      <h3>Neuen Raum erstellen</h3>
+      <button id="hostBtn">Raum erstellen</button>
+    </div>
+    <div class="box">
+      <h3>Einem Raum beitreten</h3>
+      <div class="row">
+        <input class="txt" id="codeIn" maxlength="6" placeholder="CODE">
+        <button id="joinBtn">Beitreten</button>
+      </div>
+    </div>
+    <div class="err" id="lobbyErr"></div>
+  </div>
+
+  <!-- SPIEL -->
+  <div id="game" class="hidden" style="display:flex; flex-direction:column; align-items:center; width:100%;">
+    <div class="roombar">
+      <span>Raum-Code:</span><span class="code" id="codeOut"></span>
+      <button class="sec" id="copyBtn">Einladungslink kopieren</button>
+    </div>
+    <div class="players" id="players"></div>
+    <div class="status" id="status"></div>
+    <div class="table">
+      <div class="slot">
+        <div class="lbl">Stapel (<span id="deckCount">0</span>)</div>
+        <div class="card deck" id="deck"><div class="stack"><div style="transform:translate(4px,4px)"></div><div style="transform:translate(2px,2px)"></div></div>
+          <div class="inner"><div class="face back"></div></div></div>
+      </div>
+      <div class="slot">
+        <div class="lbl" id="handLbl">Hand</div>
+        <div id="hand"><div class="empty">Noch keine Karte</div></div>
+      </div>
+      <div class="slot">
+        <div class="lbl">Ablage</div>
+        <div class="pile" id="pile"><div class="empty">Leer</div></div>
+      </div>
+    </div>
+    <div class="err" id="gameErr"></div>
+    <div class="btns">
+      <button id="drawBtn">Karte ziehen</button>
+      <button id="playBtn" disabled>Ausspielen</button>
+      <button id="resetBtn" class="sec hidden">Neues Spiel</button>
+    </div>
+    <div class="log" id="log"></div>
+  </div>
+
+<script>
+const CARDS = [
+  { emoji:"🦠", text:"Du bist infiziert" },
+  { emoji:"💍", text:"Ich hasse meine Frau" },
+  { emoji:"💀", text:"Du bist tot" },
+];
+const COPIES = 8;
+const PREFIX = "dkspiel-ischan-";       // damit Codes nicht mit anderen PeerJS-Apps kollidieren
+const $ = id => document.getElementById(id);
+
+const shuffle = a => { for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
+const newDeck = () => shuffle(CARDS.flatMap((_,i) => Array(COPIES).fill(i)));
+const isCard = c => Number.isInteger(c) && c>=0 && c<CARDS.length;
+const cleanName = n => (typeof n==='string' ? n.trim().slice(0,14) : '') || 'Spieler';
+
+let peer = null, isHost = false, mySeat = -1, roomCode = '';
+let S = null;                 // Spielstand (beim Host die Wahrheit, bei Gästen eine Kopie)
+const conns = {};             // nur Host: seat -> connection
+let hostConn = null;          // nur Gast
+let lastHandKey = null;
+
+try { $('nameIn').value = localStorage.getItem('dk-name') || ''; } catch(e) {}
+const fromHash = location.hash.replace('#','').toUpperCase();
+if (/^[A-Z0-9]{6}$/.test(fromHash)) $('codeIn').value = fromHash;
+
+function myName(){
+  const n = cleanName($('nameIn').value);
+  try { localStorage.setItem('dk-name', n); } catch(e) {}
+  return n;
+}
+function lobbyError(msg){ $('lobbyErr').textContent = msg; $('hostBtn').disabled = $('joinBtn').disabled = false; }
+
+// ================= HOST =================
+function freshState(seats){
+  return { seats: seats || [null,null,null,null], deck:newDeck(), hand:null, turn:0, pile:[], log:[], played:[0,0,0,0], round:Date.now() };
+}
+function effTurn(st){ for(let k=0;k<4;k++){ const i=(st.turn+k)%4; if(st.seats[i]) return i; } return -1; }
+function nextTurn(st, from){ for(let k=1;k<=4;k++){ const i=(from+k)%4; if(st.seats[i]) return i; } return from; }
+
+function randomCode(){ const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let c=''; for(let i=0;i<6;i++) c+=A[Math.floor(Math.random()*A.length)]; return c; }
+
+function hostGame(tries=0){
+  $('hostBtn').disabled = $('joinBtn').disabled = true;
+  $('lobbyErr').textContent = 'Raum wird erstellt …';
+  const code = randomCode();
+  peer = new Peer(PREFIX + code);
+  peer.on('open', () => {
+    isHost = true; roomCode = code; mySeat = 0;
+    S = freshState([{ name: myName() }, null, null, null]);
+    enterGame();
+  });
+  peer.on('connection', conn => {
+    conn.on('data', msg => hostHandle(conn, msg));
+    conn.on('close', () => hostDrop(conn));
+    conn.on('error', () => hostDrop(conn));
+  });
+  peer.on('error', err => {
+    if (err.type === 'unavailable-id' && tries < 5) { peer.destroy(); return hostGame(tries+1); }
+    if (!S) lobbyError('Konnte keinen Raum erstellen (' + err.type + '). Internetverbindung prüfen.');
+  });
+  peer.on('disconnected', () => { try { peer.reconnect(); } catch(e) {} });
+}
+
+function hostHandle(conn, msg){
+  if (!msg || typeof msg !== 'object') return;
+  let seat = Object.keys(conns).find(k => conns[k] === conn);
+  seat = seat === undefined ? -1 : +seat;
+  if (msg.t === 'hello' && seat < 0) {
+    const free = S.seats.findIndex(x => !x);
+    if (free < 0) { conn.send({ t:'full' }); setTimeout(() => conn.close(), 500); return; }
+    conns[free] = conn;
+    S.seats[free] = { name: cleanName(msg.name) };
+    if (effTurn(S) === free && S.hand === null) {} // nichts
+    broadcast();
+    return;
+  }
+  if (seat < 0) return;
+  if (msg.t === 'draw') doDraw(seat);
+  if (msg.t === 'play') doPlay(seat);
+}
+
+function hostDrop(conn){
+  const seat = Object.keys(conns).find(k => conns[k] === conn);
+  if (seat === undefined) return;
+  delete conns[seat];
+  const i = +seat;
+  if (effTurn(S) === i) { if (S.hand !== null) S.deck.push(S.hand); S.hand = null; S.turn = nextTurn(S, i); }
+  S.log.push({ sys: `${S.seats[i].name} hat den Raum verlassen.` });
+  S.seats[i] = null;
+  broadcast();
+}
+
+function doDraw(seat){
+  const t = effTurn(S);
+  if (t !== seat || S.hand !== null) return;
+  S.turn = t;
+  if (S.deck.length === 0) { S.deck = newDeck(); S.log.push({ sys:'🔄 Der Stapel wurde neu gemischt.' }); }
+  S.hand = S.deck.pop();
+  broadcast();
+}
+function doPlay(seat){
+  const t = effTurn(S);
+  if (t !== seat || S.hand === null) return;
+  S.pile.push(S.hand); S.pile = S.pile.slice(-4);
+  S.log.push({ name: S.seats[t].name, c: S.hand });
+  S.played[t]++; S.hand = null;
+  S.turn = nextTurn(S, t);
+  broadcast();
+}
+function doReset(){
+  S = freshState(S.seats);
+  S.log.push({ sys:'🃏 Neues Spiel – Karten neu gemischt.' });
+  broadcast();
+}
+
+function broadcast(){
+  S.log = S.log.slice(-30);
+  const pub = { ...S, deckCount: S.deck.length, deck: undefined };
+  Object.entries(conns).forEach(([seat, c]) => { try { c.send({ t:'state', state: pub, you: +seat }); } catch(e) {} });
+  render();
+}
+
+// ================= GAST =================
+function joinGame(){
+  const code = $('codeIn').value.trim().toUpperCase();
+  if (!/^[A-Z0-9]{6}$/.test(code)) return lobbyError('Bitte den 6-stelligen Raum-Code eingeben.');
+  $('hostBtn').disabled = $('joinBtn').disabled = true;
+  $('lobbyErr').textContent = 'Verbinde …';
+  peer = new Peer();
+  let opened = false;
+  const timeout = setTimeout(() => { if (!opened) { lobbyError('Raum nicht gefunden oder nicht erreichbar.'); try{peer.destroy();}catch(e){} } }, 12000);
+  peer.on('open', () => {
+    hostConn = peer.connect(PREFIX + code, { reliable:true });
+    hostConn.on('open', () => { opened = true; clearTimeout(timeout); hostConn.send({ t:'hello', name: myName() }); });
+    hostConn.on('data', msg => {
+      if (!msg || typeof msg !== 'object') return;
+      if (msg.t === 'full') { clearTimeout(timeout); lobbyError('Der Raum ist schon voll (4 Spieler).'); return; }
+      if (msg.t === 'state') {
+        S = sanitize(msg.state); mySeat = Number.isInteger(msg.you) ? msg.you : -1;
+        if (!roomCode) { roomCode = code; enterGame(); } else render();
+      }
+    });
+    hostConn.on('close', () => { if (roomCode) { $('gameErr').textContent = 'Der Raum wurde geschlossen (der Ersteller ist weg).'; disableAll(); } });
+  });
+  peer.on('error', err => {
+    clearTimeout(timeout);
+    if (err.type === 'peer-unavailable') lobbyError('Kein Raum mit diesem Code gefunden.');
+    else if (!roomCode) lobbyError('Verbindungsfehler (' + err.type + ').');
+  });
+}
+
+// Daten vom Host prüfen, bevor sie angezeigt werden
+function sanitize(d){
+  const s = { seats:[null,null,null,null], hand:null, turn:0, pile:[], log:[], played:[0,0,0,0], round:0, deckCount:0 };
+  if (!d || typeof d !== 'object') return s;
+  if (Array.isArray(d.seats)) s.seats = d.seats.slice(0,4).map(x => x && typeof x==='object' ? { name: cleanName(x.name) } : null);
+  while (s.seats.length < 4) s.seats.push(null);
+  s.hand = isCard(d.hand) ? d.hand : null;
+  s.turn = Number.isInteger(d.turn) && d.turn>=0 && d.turn<4 ? d.turn : 0;
+  if (Array.isArray(d.pile)) s.pile = d.pile.filter(isCard).slice(-4);
+  if (Array.isArray(d.log)) s.log = d.log.slice(-30).map(e => e && typeof e.sys==='string' ? { sys:e.sys.slice(0,80) }
+       : e && isCard(e.c) ? { name: cleanName(e.name), c:e.c } : null).filter(Boolean);
+  if (Array.isArray(d.played)) s.played = d.played.slice(0,4).map(n => Number.isInteger(n)&&n>=0 ? n : 0);
+  s.round = typeof d.round==='number' ? d.round : 0;
+  s.deckCount = Number.isInteger(d.deckCount) ? d.deckCount : 0;
+  return s;
+}
+
+// ================= ANZEIGE =================
+function enterGame(){
+  $('lobby').classList.add('hidden');
+  $('game').classList.remove('hidden');
+  $('codeOut').textContent = roomCode;
+  $('resetBtn').classList.toggle('hidden', !isHost);
+  try { history.replaceState(null, '', '#' + roomCode); } catch(e) {}
+  render();
+}
+function disableAll(){ ['drawBtn','playBtn','resetBtn'].forEach(id => $(id).disabled = true); }
+
+function cardEl(c, flipped=true){
+  const d = document.createElement('div');
+  d.className = 'card' + (flipped ? ' flipped' : '');
+  d.innerHTML = `<div class="inner"><div class="face back"></div><div class="face front"><div class="emoji">${CARDS[c].emoji}</div><div class="txt"></div></div></div>`;
+  d.querySelector('.txt').textContent = CARDS[c].text;
+  return d;
+}
+
+function render(){
+  if (!S) return;
+  const t = effTurn(S);
+  const box = $('players'); box.innerHTML = '';
+  for (let i=0;i<4;i++){
+    const p = document.createElement('div');
+    const pl = S.seats[i];
+    p.className = 'player' + (i===t ? ' active' : '') + (i===mySeat ? ' me' : '') + (!pl ? ' free' : '');
+    const nm = document.createElement('div'); nm.className='nm'; nm.textContent = pl ? pl.name : 'Platz frei';
+    const cnt = document.createElement('div'); cnt.className='cnt'; cnt.textContent = pl ? `${S.played[i]} gespielt` + (i===0 ? ' · 👑' : '') : 'wartet …';
+    p.append(nm, cnt); box.appendChild(p);
+  }
+  const handKey = S.hand===null ? null : `${S.round}-${S.played.join()}-${S.hand}`;
+  if (handKey !== lastHandKey){
+    const h = $('hand'); h.innerHTML='';
+    if (S.hand===null) h.innerHTML = '<div class="empty">Noch keine Karte</div>';
+    else { const el = cardEl(S.hand,false); h.appendChild(el); requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList.add('flipped'))); }
+    lastHandKey = handKey;
+  }
+  $('handLbl').textContent = t>=0 && S.seats[t] ? `Hand von ${S.seats[t].name}` : 'Hand';
+  const pile = $('pile'); pile.innerHTML='';
+  if (!S.pile.length) pile.innerHTML = '<div class="empty">Leer</div>';
+  S.pile.forEach((c,i) => { const el = cardEl(c); el.style.transform = `rotate(${(i - S.pile.length + 1)*7 + ((c*13+i*7)%5-2)}deg)`; pile.appendChild(el); });
+
+  const log = $('log'); log.innerHTML='';
+  if (!S.log.length) log.innerHTML = '<div style="color:var(--dim)">Noch keine Karten gespielt.</div>';
+  S.log.slice().reverse().forEach(e => {
+    const d = document.createElement('div');
+    if (e.sys) { d.style.color = 'var(--dim)'; d.textContent = e.sys; }
+    else { const n = document.createElement('span'); n.className='n'; n.textContent = e.name; d.appendChild(n); d.append(` spielt: ${CARDS[e.c].emoji} „${CARDS[e.c].text}“`); }
+    log.appendChild(d);
+  });
+
+  $('deckCount').textContent = isHost ? S.deck.length : S.deckCount;
+  const players = S.seats.filter(Boolean).length;
+  const st = $('status'); st.innerHTML = '';
+  if (players < 2 && S.played.every(n=>n===0)) {
+    st.textContent = 'Warte auf Mitspieler … schick ihnen den Code oder Link! (Ihr könnt aber auch schon loslegen.)';
+  }
+  if (t >= 0) {
+    const line = document.createElement('div');
+    if (t === mySeat) line.innerHTML = S.hand===null ? '<b>Du</b> bist dran – zieh eine Karte!' : '<b>Du</b> bist dran – spiel deine Karte aus!';
+    else { const b = document.createElement('b'); b.textContent = S.seats[t].name; line.append(b, S.hand===null ? ' ist dran – zieht eine Karte.' : ' ist dran – spielt die Karte aus.'); }
+    st.appendChild(line);
+  }
+  const myTurn = t === mySeat && t >= 0;
+  $('drawBtn').disabled = !myTurn || S.hand!==null;
+  $('playBtn').disabled = !myTurn || S.hand===null;
+  $('resetBtn').disabled = false;
+}
+
+// ================= STEUERUNG =================
+function act(type){
+  if (!S) return;
+  if (isHost) { type==='draw' ? doDraw(mySeat) : doPlay(mySeat); }
+  else if (hostConn && hostConn.open) hostConn.send({ t:type });
+}
+$('hostBtn').addEventListener('click', () => { if (!$('nameIn').value.trim()) return lobbyError('Bitte gib zuerst deinen Namen ein.'); hostGame(); });
+$('joinBtn').addEventListener('click', () => { if (!$('nameIn').value.trim()) return lobbyError('Bitte gib zuerst deinen Namen ein.'); joinGame(); });
+$('codeIn').addEventListener('keydown', e => { if (e.key==='Enter') $('joinBtn').click(); });
+$('deck').addEventListener('click', () => act('draw'));
+$('drawBtn').addEventListener('click', () => act('draw'));
+$('playBtn').addEventListener('click', () => act('play'));
+$('resetBtn').addEventListener('click', () => { if (isHost) doReset(); });
+$('copyBtn').addEventListener('click', async () => {
+  const link = location.href.split('#')[0] + '#' + roomCode;
+  try { await navigator.clipboard.writeText(link); $('copyBtn').textContent = '✓ Kopiert!'; }
+  catch(e) { $('copyBtn').textContent = link; }
+  setTimeout(() => $('copyBtn').textContent = 'Einladungslink kopieren', 2500);
+});
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || !S) return;
+  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); act(S.hand===null ? 'draw' : 'play'); }
+});
+window.addEventListener('beforeunload', e => { if (isHost && Object.keys(conns).length) { e.preventDefault(); e.returnValue = ''; } });
+</script>
+</body>
+</html>
