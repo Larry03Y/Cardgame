@@ -183,6 +183,7 @@
       💍 <b>Ich hasse meine Frau</b> – wirkt auf dich: heilt ein grünes Herz, sonst bekommst du 1 ❤️ zurück (max. 3).<br>
       Ohne Herzen bist du raus und schaust bis zum Ende der Runde zu. <b>Wer als Letztes noch Herzen hat, gewinnt.</b>
     </details>
+    <div style="color:var(--dim); font-size:11px; margin:6px 0 14px;">Version <span class="ver"></span></div>
   </div>
 
 <script>
@@ -193,6 +194,7 @@ const CARDS = [
 ];
 const DECK_MIX = [8, 6, 10];   // Anzahl je Karte im Stapel: infiziert, Frau, tot
 const MAX_HEARTS = 3;
+const VERSION = 5;   // bei jeder Regeländerung erhöhen – alte und neue Version können nicht zusammen spielen
 const PREFIX = "dkspiel-ischan-";
 const $ = id => document.getElementById(id);
 
@@ -210,6 +212,7 @@ let hostConn = null;
 let lastHandKey = null;
 
 try { $('nameIn').value = localStorage.getItem('dk-name') || ''; } catch(e) {}
+document.querySelectorAll('.ver').forEach(e => e.textContent = VERSION);
 const NARROW = !!(window.matchMedia && matchMedia('(max-width: 600px)').matches);
 if (NARROW) document.querySelector('.rules').removeAttribute('open');
 const fromHash = location.hash.replace('#','').toUpperCase();
@@ -340,6 +343,7 @@ function hostHandle(conn, msg){
   let seat = Object.keys(conns).find(k => conns[k] === conn);
   seat = seat === undefined ? -1 : +seat;
   if (msg.t === 'hello' && seat < 0) {
+    if (msg.v !== VERSION) { conn.send({ t:'version', v:VERSION }); conn.send({ t:'full', reason:'version' }); setTimeout(() => conn.close(), 800); return; }
     const free = S.seats.findIndex(x => !x);
     if (free < 0) { conn.send({ t:'full' }); setTimeout(() => conn.close(), 500); return; }
     conns[free] = conn;
@@ -375,7 +379,7 @@ function viewFor(seat){
   };
 }
 function broadcast(){
-  Object.entries(conns).forEach(([seat, c]) => { try { c.send({ t:'state', state: viewFor(+seat), you:+seat }); } catch(e) {} });
+  Object.entries(conns).forEach(([seat, c]) => { try { c.send({ t:'state', v:VERSION, state: viewFor(+seat), you:+seat }); } catch(e) {} });
   V = viewFor(mySeat);
   render();
 }
@@ -391,10 +395,12 @@ function joinGame(){
   const timeout = setTimeout(() => { if (!opened) { lobbyError('Raum nicht gefunden oder nicht erreichbar.'); try{peer.destroy();}catch(e){} } }, 12000);
   peer.on('open', () => {
     hostConn = peer.connect(PREFIX + code, { reliable:true });
-    hostConn.on('open', () => { opened = true; clearTimeout(timeout); hostConn.send({ t:'hello', name: myName() }); });
+    hostConn.on('open', () => { opened = true; clearTimeout(timeout); hostConn.send({ t:'hello', name: myName(), v:VERSION }); });
     hostConn.on('data', msg => {
       if (!msg || typeof msg !== 'object') return;
+      if (msg.t === 'version' || (msg.t === 'full' && msg.reason === 'version')) { clearTimeout(timeout); lobbyError('⚠️ Du und der Raum-Ersteller habt verschiedene Versionen des Spiels. Bitte ALLE die Seite neu laden (ggf. Tab schließen und neu öffnen) und einen neuen Raum erstellen.'); return; }
       if (msg.t === 'full') { clearTimeout(timeout); lobbyError('Der Raum ist schon voll (4 Spieler).'); return; }
+      if (msg.t === 'state' && msg.v !== VERSION) { clearTimeout(timeout); lobbyError('⚠️ Der Raum-Ersteller hat eine alte Version des Spiels. Er soll die Seite neu laden und einen neuen Raum erstellen.'); return; }
       if (msg.t === 'state') {
         V = sanitize(msg.state); mySeat = intIn(msg.you, 0, 3, -1);
         if (!roomCode) { roomCode = code; enterGame(); } else render();
