@@ -7,7 +7,7 @@
 <title>Das Kartenspiel</title>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <style>
-  :root { --felt:#1f5f3f; --felt2:#174a31; --gold:#f2c14e; --text:#f4f1e8; --dim:#b9cbbf; }
+  :root { --felt:#1f5f3f; --felt2:#174a31; --gold:#f2c14e; --text:#f4f1e8; --dim:#b9cbbf; --cw:150px; }
   * { box-sizing:border-box; }
   body { margin:0; min-height:100vh; color:var(--text); font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
          background:radial-gradient(ellipse at center, var(--felt) 0%, var(--felt2) 75%, #0f3322 100%);
@@ -46,7 +46,7 @@
   .table { display:flex; gap:28px; align-items:center; justify-content:center; flex-wrap:wrap; margin-bottom:16px; }
   .slot { display:flex; flex-direction:column; align-items:center; gap:8px; }
   .slot .lbl { font-size:13px; color:var(--dim); text-align:center; }
-  .card { width:150px; height:215px; border-radius:14px; position:relative; perspective:800px; }
+  .card { width:var(--cw); height:calc(var(--cw) * 1.43); border-radius:14px; position:relative; perspective:800px; }
   .card .inner { position:absolute; inset:0; transition:transform .5s; transform-style:preserve-3d; }
   .card.flipped .inner { transform:rotateY(180deg); }
   .face { position:absolute; inset:0; border-radius:14px; backface-visibility:hidden; display:flex; align-items:center; justify-content:center; box-shadow:0 6px 16px rgba(0,0,0,.35); }
@@ -58,9 +58,10 @@
   .front .eff { font-size:12px; color:#555; line-height:1.3; }
   .deck { cursor:pointer; }
   .deck .stack div { position:absolute; inset:0; border-radius:14px; background:#5e1720; border:6px solid #e4e0d4; }
-  .empty { border:2px dashed rgba(255,255,255,.35); border-radius:14px; width:150px; height:215px; display:flex; align-items:center; justify-content:center; color:var(--dim); font-size:13px; text-align:center; padding:10px; }
-  .pile { position:relative; width:150px; height:215px; }
-  .pile .card { position:absolute; inset:0; }
+  .empty { border:2px dashed rgba(255,255,255,.35); border-radius:14px; width:var(--cw); height:calc(var(--cw) * 1.43); display:flex; align-items:center; justify-content:center; color:var(--dim); font-size:13px; text-align:center; padding:10px; }
+  .pile { position:relative; width:var(--cw); height:calc(var(--cw) * 1.43); }
+  .pile .card { position:absolute; inset:0; transform-origin:50% 100%; }
+  .slot .lbl { position:relative; z-index:2; }
   .status { font-size:18px; margin:4px 0 12px; text-align:center; min-height:26px; }
   .status b { color:var(--gold); }
   .banner { font-size:24px; font-weight:800; color:#7CFC9A; text-align:center; margin-bottom:8px; }
@@ -71,6 +72,52 @@
   .log .n { color:var(--gold); font-weight:700; }
   .rules { width:min(100%, 680px); color:var(--dim); font-size:13px; margin-top:12px; line-height:1.6; }
   .rules summary { cursor:pointer; color:var(--text); font-weight:600; }
+
+  /* ===== Handy-Ansicht ===== */
+  @media (max-width: 600px) {
+    :root { --cw: min(27vw, 112px); }
+    body { padding:10px 10px 0; }
+    h1 { font-size:20px; margin:2px 0 6px; }
+    .sub { display:none; }
+    .roombar { padding:5px 10px; gap:8px; margin-bottom:8px; font-size:13px; }
+    .roombar .code { font-size:17px; letter-spacing:3px; }
+    .roombar button { padding:5px 10px; font-size:12px; }
+    .banner { font-size:20px; margin-bottom:6px; }
+
+    /* Spieler als 2x2-Raster, Name und Herzen in einer Zeile */
+    .players { grid-template-columns:1fr 1fr; gap:6px; margin-bottom:8px; }
+    .player { min-height:0; padding:6px 8px; flex-direction:row; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:0 6px; text-align:left; }
+    .player.active { transform:none; }
+    .player .nm { font-size:14px; flex:1 1 auto; min-width:0; }
+    .player .hearts { font-size:14px; min-height:0; letter-spacing:0; }
+    .player .cnt { flex-basis:100%; font-size:11px; }
+    .player .cnt:empty { display:none; }
+
+    .status { font-size:15px; margin:2px 0 8px; min-height:20px; }
+    .table { gap:8px; flex-wrap:nowrap; margin-bottom:6px; align-items:flex-start; }
+    .slot { gap:4px; }
+    .slot .lbl { font-size:11px; max-width:var(--cw); line-height:1.2; min-height:27px; display:flex; align-items:flex-end; justify-content:center; }
+    .face { border-radius:10px; }
+    .card, .card .face, .empty { border-radius:10px; }
+    .back { border-width:4px; }
+    .back::after { font-size:34px; }
+    .front { padding:6px; gap:4px; border-width:4px; }
+    .front .emoji { font-size:26px; }
+    .front .txt { font-size:13px; }
+    .front .eff { font-size:9.5px; }
+    .deck .stack div { border-radius:10px; border-width:4px; }
+    .empty { font-size:11px; }
+    .err { min-height:0; margin:4px 0; font-size:13px; }
+
+    /* Knöpfe kleben unten am Bildschirm */
+    .btns { position:sticky; bottom:0; z-index:5; width:calc(100% + 20px); margin:0 -10px 8px; padding:10px 10px calc(10px + env(safe-area-inset-bottom));
+            background:linear-gradient(to top, #133d29 70%, rgba(19,61,41,0)); gap:8px; flex-wrap:nowrap; }
+    .btns button { flex:1; padding:14px 8px; font-size:15px; }
+    .btns button.hidden { display:none; }
+
+    .log { max-height:140px; font-size:13px; padding:8px 10px; }
+    .rules { font-size:12.5px; margin-bottom:16px; }
+  }
 </style>
 </head>
 <body>
@@ -163,6 +210,8 @@ let hostConn = null;
 let lastHandKey = null;
 
 try { $('nameIn').value = localStorage.getItem('dk-name') || ''; } catch(e) {}
+const NARROW = !!(window.matchMedia && matchMedia('(max-width: 600px)').matches);
+if (NARROW) document.querySelector('.rules').removeAttribute('open');
 const fromHash = location.hash.replace('#','').toUpperCase();
 if (/^[A-Z0-9]{6}$/.test(fromHash)) $('codeIn').value = fromHash;
 
@@ -452,7 +501,7 @@ function render(){
   // Ablage
   const pile = $('pile'); pile.innerHTML='';
   if (!V.pile.length) pile.innerHTML = '<div class="empty">Leer</div>';
-  V.pile.forEach((c,i) => { const el = cardEl(c); el.style.transform = `rotate(${(i - V.pile.length + 1)*7 + ((c*13+i*7)%5-2)}deg)`; pile.appendChild(el); });
+  V.pile.forEach((c,i) => { const el = cardEl(c); el.style.transform = `rotate(${(i - V.pile.length + 1)*(NARROW ? 3 : 5) + ((c*13+i*7)%3-1)}deg)`; pile.appendChild(el); });
 
   // Protokoll
   const log = $('log'); log.innerHTML='';
