@@ -82,6 +82,11 @@
   .handrow .card.new { animation:pop .45s ease-out; }
   @keyframes pop { from { transform:translateY(-40px) scale(.7); opacity:0; } to { transform:none; opacity:1; } }
   .handrow .empty.slotfree { opacity:.5; }
+  .targets { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:12px; }
+  .targets button { background:#c0392b; color:#fff; padding:12px 18px; }
+  .dirinfo { font-size:12px; color:var(--dim); margin:-6px 0 6px; }
+  .card.mystery .front { background:#2d2440; color:#f4f1e8; border-color:#6c5a99; }
+  .card.mystery .front .eff { color:#cbbfe8; }
   .rules { width:min(100%, 680px); color:var(--dim); font-size:13px; margin-top:12px; line-height:1.6; }
   .rules summary { cursor:pointer; color:var(--text); font-weight:600; }
 
@@ -168,6 +173,7 @@
     </div>
     <div class="banner hidden" id="banner"></div>
     <div class="players" id="players"></div>
+    <div class="dirinfo hidden" id="dirInfo"></div>
     <div class="status" id="status"></div>
     <div class="table">
       <div class="slot small">
@@ -182,6 +188,7 @@
     </div>
     <div class="lbl handlbl" id="handLbl">Deine Karten</div>
     <div class="handrow" id="hand"></div>
+    <div class="targets hidden" id="targets"></div>
     <div class="err" id="gameErr"></div>
     <div class="btns">
       <button id="drawBtn">Karte ziehen</button>
@@ -195,13 +202,21 @@
       Jeder startet mit <b>3 ❤️</b> und darf bis zu <b>3 Karten</b> auf der Hand haben – nur du siehst deine Karten.<br>
       <b>Dein Zug:</b> Zieh eine Karte. Dann spielst du <b>eine</b> Karte aus <b>oder</b> beendest den Zug und hebst deine Karten für später auf.
       Hast du am Anfang deines Zugs schon 3 Karten, ziehst du nicht, sondern <b>musst</b> eine ausspielen.<br><br>
-      💀 <b>Du bist tot</b> – der nächste Spieler (im Uhrzeigersinn) verliert 1 ❤️.<br>
+      „Der nächste Spieler“ ist immer der nächste in Spielrichtung (am Anfang im Uhrzeigersinn).<br>
+      💀 <b>Du bist tot</b> – der nächste Spieler verliert 1 ❤️.<br>
       🦠 <b>Du bist infiziert</b> – beim nächsten Spieler wird ein Herz grün 💚. Ab der nächsten Runde (bei seinem übernächsten Zug) ist es weg.<br>
       😱 <b>IYAAAH</b> – <b>alle</b> verlieren 1 ❤️, auch du.<br>
       😡 <b>Das geht nicht</b> – du bekommst ein Schild 🛡️. Es blockt den nächsten Angriff auf dich (💀, 🦠 oder 😱) und ist dann weg. Mehr als ein Schild geht nicht.<br>
       💍 <b>Ich hasse meine Frau</b> – für dich: heilt ein grünes Herz, sonst bekommst du 1 ❤️ zurück (max. 3).<br>
       🤷 <b>Ist mir egal</b> – die Handkarten aller Spieler werden zufällig getauscht. Jeder bekommt die Karten von jemand anderem.<br>
-      🧔 <b>Kosta</b> – alle Spieler (auch du) legen ihre gesammelten Karten zurück auf den Stapel, danach wird neu gemischt.<br><br>
+      🧔 <b>Kosta</b> – alle Spieler (auch du) legen ihre gesammelten Karten zurück auf den Stapel, danach wird neu gemischt.<br>
+      👨‍🏫 <b>Herr Birkicht</b> – du wählst einen Spieler, er verliert 1 ❤️.<br>
+      😴 <b>Janek</b> – du wählst einen Spieler, er muss seine nächste Runde aussetzen.<br>
+      😽 <b>Katze mit großen Lippen</b> – heilt alle Spieler (grünes Herz wird rot, sonst +1 ❤️).<br>
+      🔄 <b>Leon</b> – die Spielrichtung dreht sich um.<br>
+      🦊 <b>Furry Baddie</b> – die nächste Karte, die der nächste Spieler zieht, bleibt geheim ❓. Er weiß erst nach dem Ausspielen, was sie war (braucht die Karte ein Ziel, wird es zufällig bestimmt).<br>
+      🍫 <b>Schokokuss</b> – alle sterben, niemand gewinnt. Die Chance, ihn zu ziehen, liegt bei 0,01 %.<br>
+      Das Schild 🛡️ blockt auch 👨‍🏫 und 😴.<br><br>
       Ohne Herzen bist du raus und schaust bis zum Ende der Runde zu. <b>Wer als Letztes noch Herzen hat, gewinnt.</b>
     </details>
     <div style="color:var(--dim); font-size:11px; margin:6px 0 14px;">Version <span class="ver"></span></div>
@@ -216,11 +231,21 @@ const CARDS = [
   { emoji:"😡", text:"Das geht nicht",       eff:"Schild 🛡️: blockt den nächsten Angriff" },
   { emoji:"🤷", text:"Ist mir egal",         eff:"Alle Handkarten werden zufällig getauscht" },
   { emoji:"🧔", text:"Kosta",                eff:"Alle legen ihre Karten zurück auf den Stapel" },
+  { emoji:"👨‍🏫", text:"Herr Birkicht",       eff:"Du wählst einen Spieler: er verliert 1 ❤️", choose:true },
+  { emoji:"😴", text:"Janek",                eff:"Du wählst einen Spieler: er setzt eine Runde aus", choose:true },
+  { emoji:"😽", text:"Katze mit großen Lippen", eff:"Heilt ALLE Spieler" },
+  { emoji:"🔄", text:"Leon",                 eff:"Die Spielrichtung dreht sich um" },
+  { emoji:"🍫", text:"Schokokuss",           eff:"Alle sterben. Niemand gewinnt." },
+  { emoji:"🦊", text:"Furry Baddie",         eff:"Die nächste Karte vom nächsten Spieler bleibt geheim ❓" },
 ];
-const DECK_MIX = [6, 6, 8, 3, 5, 3, 3];   // Anzahl je Karte: infiziert, Frau, tot, IYAAAH, Das geht nicht, Ist mir egal, Kosta
+// Anzahl je Karte im Stapel (gleiche Reihenfolge wie oben). Schokokuss liegt nicht im Stapel, sondern kommt mit 0,01 % Chance beim Ziehen.
+const DECK_MIX = [6, 6, 8, 3, 5, 3, 3, 4, 3, 2, 3, 0, 3];
+const SCHOKO = 11, SCHOKO_CHANCE = 0.0001;
+const HIDDEN = 100;                               // geheime Karte = Kartennummer + 100
+const cardOf = x => x % HIDDEN, isHidden = x => x >= HIDDEN;
 const HAND_MAX = 3;
 const MAX_HEARTS = 3;
-const VERSION = 9;   // bei jeder Regeländerung erhöhen – alte und neue Version können nicht zusammen spielen
+const VERSION = 10;   // bei jeder Regeländerung erhöhen – alte und neue Version können nicht zusammen spielen
 const $ = id => document.getElementById(id);
 
 const shuffle = a => { for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
@@ -249,10 +274,10 @@ function myName(){
 function lobbyError(msg){ $('lobbyErr').textContent = msg; $('hostBtn').disabled = $('joinBtn').disabled = false; }
 
 // ================= HOST: Spiellogik =================
-const newPlayer = (name, waiting=false) => ({ name, hearts: waiting ? 0 : MAX_HEARTS, infected:0, pending:0, shield:false, alive: !waiting, waiting });
+const newPlayer = (name, waiting=false) => ({ name, hearts: waiting ? 0 : MAX_HEARTS, infected:0, pending:0, shield:false, skip:false, fur:false, alive: !waiting, waiting });
 
 function freshState(){
-  return { phase:'lobby', seats:[null,null,null,null], hands:[[],[],[],[]], deck:newDeck(), turn:0, step:'draw', drew:false, pile:[], log:[], winner:null, round:Date.now() };
+  return { phase:'lobby', seats:[null,null,null,null], hands:[[],[],[],[]], deck:newDeck(), turn:0, dir:1, step:'draw', drew:false, pile:[], log:[], winner:null, round:Date.now() };
 }
 function aliveSeats(st){ return [0,1,2,3].filter(i => st.seats[i] && st.seats[i].alive); }
 function effTurn(st){
@@ -265,7 +290,7 @@ const H = n => n === 1 ? '1 Herz' : `${n} Herzen`;
 
 function knockOut(i){
   const p = S.seats[i];
-  p.alive = false; p.hearts = 0; p.infected = 0; p.pending = 0; p.shield = false;
+  p.alive = false; p.hearts = 0; p.infected = 0; p.pending = 0; p.shield = false; p.skip = false; p.fur = false;
   S.hands[i] = [];
   log({ sys:`☠️ ${p.name} ist raus!` });
 }
@@ -282,10 +307,10 @@ function checkWin(){
   return false;
 }
 function beginTurn(i){ S.turn = i; S.drew = false; S.step = S.hands[i].length < HAND_MAX ? 'draw' : 'act'; }
-// Zug an den nächsten lebenden Spieler geben – dabei greift die Infektion
+// Zug an den nächsten lebenden Spieler (in Spielrichtung) geben – dabei greifen Infektion und Aussetzen
 function advance(from){
   for (let k=1;k<=4;k++){
-    const i = (from+k)%4, p = S.seats[i];
+    const i = ((from + k*S.dir) % 4 + 4) % 4, p = S.seats[i];
     if (!p || !p.alive) continue;
     const due = p.infected - (p.pending||0);   // grüne Herzen, die schon einen Zug alt sind
     p.pending = 0;
@@ -294,9 +319,10 @@ function advance(from){
       log({ sys:`🦠 Die Infektion schlägt zu: ${p.name} verliert ${H(due)}.` });
       if (p.hearts <= 0) { knockOut(i); if (checkWin()) return; continue; }
     }
+    if (p.skip) { p.skip = false; log({ sys:`😴 ${p.name} setzt diese Runde aus.` }); continue; }
     return beginTurn(i);
   }
-  checkWin();
+  if (!checkWin()) beginTurn(aliveSeats(S)[0]);
 }
 
 function startGame(){
@@ -304,7 +330,7 @@ function startGame(){
   if (n < 2) return;
   S.seats = S.seats.map(p => p ? newPlayer(p.name) : null);
   S.hands = [[],[],[],[]];
-  S.deck = newDeck(); S.pile = []; S.winner = null; S.round = Date.now();
+  S.deck = newDeck(); S.pile = []; S.winner = null; S.round = Date.now(); S.dir = 1;
   S.phase = 'play';
   const alive = aliveSeats(S);
   beginTurn(alive[Math.floor(Math.random()*alive.length)]);
@@ -313,12 +339,16 @@ function startGame(){
 }
 
 function drawCard(){
+  if (Math.random() < SCHOKO_CHANCE) return SCHOKO;   // 0,01 % – der legendäre Schokokuss
   if (S.deck.length === 0) { S.deck = newDeck(); log({ sys:'🔄 Der Stapel wurde neu gemischt.' }); }
   return S.deck.pop();
 }
 function doDraw(seat){
   if (effTurn(S) !== seat || S.step !== 'draw') return;
-  S.hands[seat].push(drawCard());
+  const me = S.seats[seat];
+  let c = drawCard();
+  if (me.fur) { me.fur = false; c += HIDDEN; }       // Furry Baddie: diese Karte bleibt geheim
+  S.hands[seat].push(c);
   S.step = 'act'; S.drew = true;
   broadcast();
 }
@@ -330,25 +360,63 @@ function doPass(seat){
 }
 // Angriff auf einen Spieler – das Schild blockt ihn
 function hit(p){ if (p.shield) { p.shield = false; return false; } return true; }
+function heal(p){
+  if (p.infected > 0) { p.infected--; p.pending = Math.min(p.pending||0, p.infected); return 'heal'; }
+  if (p.hearts < MAX_HEARTS) { p.hearts++; return 'plus'; }
+  return null;
+}
 function damage(p){ p.hearts--; p.infected = Math.min(p.infected, Math.max(p.hearts,0)); p.pending = Math.min(p.pending||0, p.infected); }
 
-function doPlay(seat, idx){
+function doPlay(seat, idx, tgt){
   if (effTurn(S) !== seat || S.step !== 'act') return;
   const hand = S.hands[seat];
   if (!Number.isInteger(idx) || idx < 0 || idx >= hand.length) return;
-  const c = hand.splice(idx, 1)[0], me = S.seats[seat];
+  const x = hand[idx], c = cardOf(x), hid = isHidden(x), me = S.seats[seat];
+  let chosen = null;
+  if (CARDS[c].choose) {                           // Birkicht / Janek: Ziel wählen
+    const others = aliveSeats(S).filter(i => i !== seat);
+    if (hid) tgt = others[Math.floor(Math.random()*others.length)];   // geheime Karte -> Ziel zufällig
+    if (!others.includes(tgt)) return;
+    chosen = S.seats[tgt];
+  }
+  hand.splice(idx, 1);
   S.pile.push(c); S.pile = S.pile.slice(-4);
   let res, target = null;
-  if (c === 2 || c === 0) {                        // tot / infiziert -> nächster Spieler
+  if (c === SCHOKO) {                              // Schokokuss
+    aliveSeats(S).forEach(i => { S.seats[i].hearts = 0; });
+    res = 'ALLE sterben. 🍫 Niemand gewinnt.';
+    log({ name: me.name, c, res, hid });
+    aliveSeats(S).forEach(i => knockOut(i));
+    S.phase = 'over'; S.winner = null;
+    log({ sys:'🍫 Der Schokokuss hat alle erwischt – niemand gewinnt!' });
+    return broadcast();
+  }
+  if (c === 7) {                                   // Herr Birkicht
+    target = chosen.name;
+    if (!hit(chosen)) res = `${chosen.name} blockt mit dem Schild 🛡️`;
+    else { damage(chosen); res = `${chosen.name} verliert 1 Herz (${H(Math.max(chosen.hearts,0))} übrig)`; }
+  } else if (c === 8) {                            // Janek
+    target = chosen.name;
+    if (!hit(chosen)) res = `${chosen.name} blockt mit dem Schild 🛡️`;
+    else { chosen.skip = true; res = `${chosen.name} muss die nächste Runde aussetzen 😴`; }
+  } else if (c === 9) {                            // Katze
+    aliveSeats(S).forEach(i => heal(S.seats[i]));
+    res = 'ALLE werden geheilt 😽';
+  } else if (c === 10) {                           // Leon
+    S.dir = -S.dir;
+    res = `die Spielrichtung dreht sich um – jetzt ${S.dir === 1 ? 'im' : 'gegen den'} Uhrzeigersinn`;
+  } else if (c === 12) {                           // Furry Baddie
+    const p = S.seats[vNextAlive(S, seat)]; target = p.name;
+    p.fur = true; res = `${p.name}s nächste Karte bleibt geheim ❓`;
+  } else if (c === 2 || c === 0) {                 // tot / infiziert -> nächster Spieler
     const p = S.seats[vNextAlive(S, seat)]; target = p.name;
     if (!hit(p)) res = `${p.name} blockt mit dem Schild 🛡️`;
     else if (c === 2) { damage(p); res = `${p.name} verliert 1 Herz (${H(Math.max(p.hearts,0))} übrig)`; }
     else if (p.infected < p.hearts) { p.infected++; p.pending = (p.pending||0) + 1; res = `${p.name} ist infiziert – ein Herz wird grün 💚`; }
     else res = `${p.name} ist infiziert – aber alle Herzen sind schon grün`;
   } else if (c === 1) {                            // Frau
-    if (me.infected > 0) { me.infected--; me.pending = Math.min(me.pending||0, me.infected); res = 'wird geheilt – ein grünes Herz wird wieder rot ❤️'; }
-    else if (me.hearts < MAX_HEARTS) { me.hearts++; res = `bekommt 1 Herz zurück (${H(me.hearts)})`; }
-    else res = 'hat schon volle Herzen';
+    const h = heal(me);
+    res = h === 'heal' ? 'wird geheilt – ein grünes Herz wird wieder rot ❤️' : h === 'plus' ? `bekommt 1 Herz zurück (${H(me.hearts)})` : 'hat schon volle Herzen';
   } else if (c === 3) {                            // IYAAAH
     const blocked = [];
     aliveSeats(S).forEach(i => { const p = S.seats[i]; if (hit(p)) damage(p); else blocked.push(p.name); });
@@ -358,7 +426,7 @@ function doPlay(seat, idx){
     else { me.shield = true; res = 'bekommt ein Schild 🛡️'; }
   } else if (c === 6) {                            // Kosta -> alle Karten zurück in den Stapel
     const n = S.hands.reduce((a, h) => a + h.length, 0);
-    S.hands.forEach(h => { S.deck.push(...h); h.length = 0; });
+    S.hands.forEach(h => { S.deck.push(...h.map(cardOf)); h.length = 0; });
     shuffle(S.deck);
     res = n ? `alle legen ihre Karten zurück auf den Stapel (${n} Karten) – neu gemischt 🔄` : 'aber keiner hat Karten auf der Hand';
   } else {                                         // Ist mir egal -> Hände tauschen
@@ -371,7 +439,7 @@ function doPlay(seat, idx){
       res = 'alle Handkarten werden zufällig getauscht 🔀';
     } else res = 'aber es gibt niemanden zum Tauschen';
   }
-  log({ name: me.name, c, target, res });
+  log({ name: me.name, c, target, res, hid });
   knockOutDead();
   if (!checkWin()) advance(seat);
   broadcast();
@@ -485,7 +553,7 @@ function hostHandle(id, msg){
   if (seat < 0) { if (msg.t === 'ping') toGuest(id, { t:'gone' }); return; }
   if (msg.t === 'bye')  return hostDrop(seat);
   if (msg.t === 'draw') doDraw(seat);
-  if (msg.t === 'play') doPlay(seat, msg.i);
+  if (msg.t === 'play') doPlay(seat, msg.i, msg.target);
   if (msg.t === 'pass') doPass(seat);
 }
 function hostTick(){
@@ -510,9 +578,9 @@ function hostDrop(i){
 // Jeder bekommt nur seine eigenen Karten zu sehen – von den anderen nur die Anzahl
 function viewFor(seat){
   return {
-    phase:S.phase, turn:S.turn, step:S.step, drew:S.drew, pile:S.pile, log:S.log, winner:S.winner, round:S.round,
+    phase:S.phase, turn:S.turn, dir:S.dir, step:S.step, drew:S.drew, pile:S.pile, log:S.log, winner:S.winner, round:S.round,
     seats: S.seats.map((p,i) => p ? { ...p, cards: S.hands[i].length } : null),
-    deckCount:S.deck.length, hand: (S.hands[seat] || []).slice(),
+    deckCount:S.deck.length, hand: (S.hands[seat] || []).map(x => isHidden(x) ? -1 : x),   // geheime Karten kennt nicht mal der Besitzer
   };
 }
 function broadcast(){
@@ -577,25 +645,26 @@ window.addEventListener('pagehide', () => {
 });
 
 function sanitize(d){
-  const s = { phase:'lobby', seats:[null,null,null,null], turn:0, step:'draw', drew:false, pile:[], log:[], winner:null, round:0, deckCount:0, hand:[] };
+  const s = { phase:'lobby', seats:[null,null,null,null], turn:0, dir:1, step:'draw', drew:false, pile:[], log:[], winner:null, round:0, deckCount:0, hand:[] };
   if (!d || typeof d !== 'object') return s;
   if (['lobby','play','over'].includes(d.phase)) s.phase = d.phase;
   if (Array.isArray(d.seats)) s.seats = [0,1,2,3].map(i => {
     const x = d.seats[i]; if (!x || typeof x !== 'object') return null;
     const hearts = intIn(x.hearts, 0, MAX_HEARTS, 0);
-    return { name: cleanName(x.name), hearts, infected: intIn(x.infected, 0, hearts, 0), shield: !!x.shield, cards: intIn(x.cards, 0, HAND_MAX, 0), alive: !!x.alive, waiting: !!x.waiting };
+    return { name: cleanName(x.name), hearts, infected: intIn(x.infected, 0, hearts, 0), shield: !!x.shield, skip: !!x.skip, fur: !!x.fur, cards: intIn(x.cards, 0, HAND_MAX, 0), alive: !!x.alive, waiting: !!x.waiting };
   });
   s.turn = intIn(d.turn, 0, 3, 0);
+  s.dir = d.dir === -1 ? -1 : 1;
   if (['draw','act'].includes(d.step)) s.step = d.step;
   s.drew = !!d.drew;
   if (Array.isArray(d.pile)) s.pile = d.pile.filter(isCard).slice(-4);
   if (Array.isArray(d.log)) s.log = d.log.slice(-40).map(e =>
       e && typeof e.sys==='string' ? { sys:e.sys.slice(0,140) }
-    : e && isCard(e.c) ? { name: cleanName(e.name), c:e.c, target: typeof e.target==='string' ? cleanName(e.target) : null, res: typeof e.res==='string' ? e.res.slice(0,140) : '' } : null).filter(Boolean);
+    : e && isCard(e.c) ? { name: cleanName(e.name), c:e.c, hid: !!e.hid, target: typeof e.target==='string' ? cleanName(e.target) : null, res: typeof e.res==='string' ? e.res.slice(0,140) : '' } : null).filter(Boolean);
   s.winner = typeof d.winner==='string' ? cleanName(d.winner) : null;
   s.round = typeof d.round==='number' ? d.round : 0;
   s.deckCount = intIn(d.deckCount, 0, 999, 0);
-  if (Array.isArray(d.hand)) s.hand = d.hand.filter(isCard).slice(0, HAND_MAX);
+  if (Array.isArray(d.hand)) s.hand = d.hand.filter(c => c === -1 || isCard(c)).slice(0, HAND_MAX);
   return s;
 }
 
@@ -610,6 +679,11 @@ function enterGame(){
 function disableAll(){ ['drawBtn','playBtn','passBtn','startBtn'].forEach(id => $(id).disabled = true); }
 
 function cardEl(c, flipped=true){
+  if (c === -1) {                                  // geheime Karte (Furry Baddie)
+    const d = document.createElement('div'); d.className = 'card flipped mystery';
+    d.innerHTML = '<div class="inner"><div class="face back"></div><div class="face front"><div class="emoji">❓</div><div class="txt">???</div><div class="eff">Furry Baddie hat sie versteckt 🦊</div></div></div>';
+    return d;
+  }
   const d = document.createElement('div');
   d.className = 'card' + (flipped ? ' flipped' : '');
   d.innerHTML = `<div class="inner"><div class="face back"></div><div class="face front"><div class="emoji"></div><div class="txt"></div><div class="eff"></div></div></div>`;
@@ -628,7 +702,7 @@ function heartsOnly(p){
   return '❤️'.repeat(Math.max(red,0)) + '💚'.repeat(p.infected) + '🖤'.repeat(MAX_HEARTS - p.hearts);
 }
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-function vNextAlive(v, from){ for (let k=1;k<=4;k++){ const i=(from+k)%4; if (v.seats[i] && v.seats[i].alive) return i; } return from; }
+function vNextAlive(v, from){ const dir = v.dir === -1 ? -1 : 1; for (let k=1;k<=4;k++){ const i=((from+k*dir)%4+4)%4; if (v.seats[i] && v.seats[i].alive) return i; } return from; }
 function vEffTurn(v){
   if (v.phase !== 'play') return -1;
   for (let k=0;k<4;k++){ const i=(v.turn+k)%4; const p=v.seats[i]; if (p && p.alive) return i; }
@@ -644,7 +718,7 @@ function render(){
 
   // Gewinner-Banner
   const ban = $('banner');
-  if (V.phase === 'over') { ban.classList.remove('hidden'); ban.textContent = V.winner ? `🏆 ${V.winner} gewinnt!` : '🤝 Unentschieden!'; }
+  if (V.phase === 'over') { ban.classList.remove('hidden'); const lastSys = (V.log.at(-1) || {}).sys || ''; ban.textContent = V.winner ? `🏆 ${V.winner} gewinnt!` : lastSys.startsWith('🍫') ? '🍫 Schokokuss! Niemand gewinnt.' : '🤝 Unentschieden!'; }
   else ban.classList.add('hidden');
 
   // Spieler
@@ -663,6 +737,8 @@ function render(){
     else {
       if (V.phase==='play') info.push(`🃏 ${p.cards}`);
       if (p.infected) info.push('infiziert!');
+      if (p.skip) info.push('😴 setzt aus');
+      if (p.fur) info.push('🦊');
     }
     st.textContent = info.join(' · ');
     el.append(nm, hs, st); box.appendChild(el);
@@ -699,7 +775,7 @@ function render(){
   V.log.slice().reverse().forEach(e => {
     const d = document.createElement('div');
     if (e.sys) { d.style.color = 'var(--dim)'; d.textContent = e.sys; }
-    else { const n = document.createElement('span'); n.className='n'; n.textContent = e.name; d.appendChild(n); d.append(` spielt ${CARDS[e.c].emoji} „${CARDS[e.c].text}“ → ${e.res}`); }
+    else { const n = document.createElement('span'); n.className='n'; n.textContent = e.name; d.appendChild(n); d.append(e.hid ? ` spielt eine geheime Karte ❓ – es war ${CARDS[e.c].emoji} „${CARDS[e.c].text}“ → ${e.res}` : ` spielt ${CARDS[e.c].emoji} „${CARDS[e.c].text}“ → ${e.res}`); }
     log.appendChild(d);
   });
 
@@ -717,7 +793,10 @@ function render(){
       else {
         const nextName = esc(V.seats[vNextAlive(V, mySeat)].name);
         let txt = V.drew ? '<b>Du</b> bist dran – spiel eine Karte aus oder beende den Zug.' : '<b>Deine Hand ist voll</b> – du musst eine Karte ausspielen!';
-        if (sel !== null && CARDS[hand[sel]].target) txt += ` <br>Die Karte trifft <b>${nextName}</b>.`;
+        const sc = sel !== null ? hand[sel] : null;
+        if (sc === -1) txt += ' <br>Geheime Karte – du weißt erst nach dem Ausspielen, was sie macht!';
+        else if (sc !== null && (CARDS[sc].target || sc === 12)) txt += ` <br>Die Karte trifft <b>${nextName}</b>.`;
+        else if (sc !== null && CARDS[sc].choose) txt += ' <br><b>Wen soll es treffen?</b> Tipp unten auf einen Namen.';
         if (sel === null) txt += ' <br>Tipp eine Karte an.';
         st.innerHTML = txt;
       }
@@ -728,7 +807,19 @@ function render(){
     }
   }
   $('drawBtn').disabled = !(myTurn && V.step === 'draw');
-  $('playBtn').disabled = !(myTurn && V.step === 'act' && sel !== null);
+  const choosing = myTurn && V.step === 'act' && sel !== null && hand[sel] !== -1 && CARDS[hand[sel]].choose;
+  $('playBtn').disabled = !(myTurn && V.step === 'act' && sel !== null) || choosing;
+  $('targets').classList.toggle('hidden', !choosing);
+  const tb = $('targets'); tb.innerHTML = '';
+  if (choosing) V.seats.forEach((p, i) => {
+    if (!p || !p.alive || i === mySeat) return;
+    const b = document.createElement('button'); b.textContent = `${CARDS[hand[sel]].emoji} ${p.name}`;
+    b.onclick = () => { const k = sel; sel = null; act('play', k, i); };
+    tb.appendChild(b);
+  });
+  const dirEl = $('dirInfo');
+  dirEl.classList.toggle('hidden', V.phase !== 'play');
+  dirEl.textContent = V.dir === 1 ? '↻ Spielrichtung: im Uhrzeigersinn' : '↺ Spielrichtung: gegen den Uhrzeigersinn';
   $('passBtn').disabled = !(myTurn && V.step === 'act' && V.drew);
   const inGame = V.phase === 'play';
   ['drawBtn','playBtn','passBtn'].forEach(id => $(id).classList.toggle('hidden', !inGame && isHost));
@@ -739,10 +830,10 @@ function render(){
 }
 
 // ================= STEUERUNG =================
-function act(type, i){
+function act(type, i, target){
   if (!V) return;
-  if (isHost) { if (type==='draw') doDraw(mySeat); else if (type==='play') doPlay(mySeat, i); else doPass(mySeat); }
-  else if (mq && !closed) pub(T(joinCode,'up'), { t:type, i, from:myId });
+  if (isHost) { if (type==='draw') doDraw(mySeat); else if (type==='play') doPlay(mySeat, i, target); else doPass(mySeat); }
+  else if (mq && !closed) pub(T(joinCode,'up'), { t:type, i, target, from:myId });
 }
 $('hostBtn').addEventListener('click', () => { if (!$('nameIn').value.trim()) return lobbyError('Bitte gib zuerst deinen Namen ein.'); hostGame(); });
 $('joinBtn').addEventListener('click', () => { if (!$('nameIn').value.trim()) return lobbyError('Bitte gib zuerst deinen Namen ein.'); joinGame(); });
