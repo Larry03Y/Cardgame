@@ -200,7 +200,8 @@
       😱 <b>IYAAAH</b> – <b>alle</b> verlieren 1 ❤️, auch du.<br>
       😡 <b>Das geht nicht</b> – du bekommst ein Schild 🛡️. Es blockt den nächsten Angriff auf dich (💀, 🦠 oder 😱) und ist dann weg. Mehr als ein Schild geht nicht.<br>
       💍 <b>Ich hasse meine Frau</b> – für dich: heilt ein grünes Herz, sonst bekommst du 1 ❤️ zurück (max. 3).<br>
-      🤷 <b>Ist mir egal</b> – die Handkarten aller Spieler werden zufällig getauscht. Jeder bekommt die Karten von jemand anderem.<br><br>
+      🤷 <b>Ist mir egal</b> – die Handkarten aller Spieler werden zufällig getauscht. Jeder bekommt die Karten von jemand anderem.<br>
+      🧔 <b>Kosta</b> – alle Spieler (auch du) legen ihre gesammelten Karten zurück auf den Stapel, danach wird neu gemischt.<br><br>
       Ohne Herzen bist du raus und schaust bis zum Ende der Runde zu. <b>Wer als Letztes noch Herzen hat, gewinnt.</b>
     </details>
     <div style="color:var(--dim); font-size:11px; margin:6px 0 14px;">Version <span class="ver"></span></div>
@@ -214,11 +215,12 @@ const CARDS = [
   { emoji:"😱", text:"IYAAAH",               eff:"ALLE verlieren 1 ❤️ – auch du!" },
   { emoji:"😡", text:"Das geht nicht",       eff:"Schild 🛡️: blockt den nächsten Angriff" },
   { emoji:"🤷", text:"Ist mir egal",         eff:"Alle Handkarten werden zufällig getauscht" },
+  { emoji:"🧔", text:"Kosta",                eff:"Alle legen ihre Karten zurück auf den Stapel" },
 ];
-const DECK_MIX = [6, 6, 8, 3, 5, 3];   // Anzahl je Karte: infiziert, Frau, tot, IYAAAH, Das geht nicht, Ist mir egal
+const DECK_MIX = [6, 6, 8, 3, 5, 3, 3];   // Anzahl je Karte: infiziert, Frau, tot, IYAAAH, Das geht nicht, Ist mir egal, Kosta
 const HAND_MAX = 3;
 const MAX_HEARTS = 3;
-const VERSION = 8;   // bei jeder Regeländerung erhöhen – alte und neue Version können nicht zusammen spielen
+const VERSION = 9;   // bei jeder Regeländerung erhöhen – alte und neue Version können nicht zusammen spielen
 const $ = id => document.getElementById(id);
 
 const shuffle = a => { for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
@@ -354,6 +356,11 @@ function doPlay(seat, idx){
   } else if (c === 4) {                            // Das geht nicht -> Schild
     if (me.shield) res = 'hat schon ein Schild 🛡️';
     else { me.shield = true; res = 'bekommt ein Schild 🛡️'; }
+  } else if (c === 6) {                            // Kosta -> alle Karten zurück in den Stapel
+    const n = S.hands.reduce((a, h) => a + h.length, 0);
+    S.hands.forEach(h => { S.deck.push(...h); h.length = 0; });
+    shuffle(S.deck);
+    res = n ? `alle legen ihre Karten zurück auf den Stapel (${n} Karten) – neu gemischt 🔄` : 'aber keiner hat Karten auf der Hand';
   } else {                                         // Ist mir egal -> Hände tauschen
     const alive = aliveSeats(S);
     if (alive.length >= 2) {
