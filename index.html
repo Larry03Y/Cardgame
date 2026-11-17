@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Das Kartenspiel</title>
-<script src="https://unpkg.com/mqtt@5.16.1/dist/mqtt.min.js"></script>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <style>
   :root { --felt:#1f5f3f; --felt2:#174a31; --gold:#f2c14e; --text:#f4f1e8; --dim:#b9cbbf; --cw:150px; }
   * { box-sizing:border-box; }
@@ -194,7 +194,8 @@ const CARDS = [
 ];
 const DECK_MIX = [8, 6, 10];   // Anzahl je Karte im Stapel: infiziert, Frau, tot
 const MAX_HEARTS = 3;
-const VERSION = 6;   // bei jeder Regeländerung erhöhen – alte und neue Version können nicht zusammen spielen
+const VERSION = 5;   // bei jeder Regeländerung erhöhen – alte und neue Version können nicht zusammen spielen
+const PREFIX = "dkspiel-ischan-";
 const $ = id => document.getElementById(id);
 
 const shuffle = a => { for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
@@ -203,9 +204,11 @@ const isCard = c => Number.isInteger(c) && c>=0 && c<CARDS.length;
 const cleanName = n => (typeof n==='string' ? n.trim().slice(0,14) : '') || 'Spieler';
 const intIn = (n, lo, hi, d) => Number.isInteger(n) && n>=lo && n<=hi ? n : d;
 
-let isHost = false, mySeat = -1, roomCode = '';
+let peer = null, isHost = false, mySeat = -1, roomCode = '';
 let S = null;   // Host: voller Spielstand
 let V = null;   // was dieses Gerät sehen darf
+const conns = {};
+let hostConn = null;
 let lastHandKey = null;
 
 try { $('nameIn').value = localStorage.getItem('dk-name') || ''; } catch(e) {}
@@ -312,94 +315,58 @@ function doPlay(seat){
   broadcast();
 }
 
-// ================= VERBINDUNG (öffentlicher HiveMQ-Server, funktioniert in jedem Netz) =================
-const BROKER = 'wss://broker.hivemq.com:8884/mqtt';
-const ROOMS = 'dkspiel-ischan/raum/';
-const T = (code, sub) => ROOMS + code + '/' + sub;
-let mq = null, myId = '', joinCode = '', closed = false, hostLast = 0;
-try { myId = sessionStorage.getItem('dk-id') || ''; } catch(e) {}
-if (!/^[a-z0-9]{8,24}$/.test(myId)) { myId = (Math.random().toString(36).slice(2,10) + Date.now().toString(36)).slice(0,16); try { sessionStorage.setItem('dk-id', myId); } catch(e) {} }
-const dec = new TextDecoder();
-
-function connectBroker(will){
-  return new Promise((resolve, reject) => {
-    if (!window.mqtt) return reject('lib');
-    const c = mqtt.connect(BROKER, { clientId: 'dk_' + myId + '_' + Math.random().toString(36).slice(2,6), clean:true,
-      connectTimeout:8000, reconnectPeriod:2000, keepalive:20, will });
-    let done = false;
-    const fail = e => { if (!done) { done = true; try { c.end(true); } catch(_) {} reject(e); } };
-    c.on('connect', () => { if (!done) { done = true; resolve(c); } netState(true); });
-    c.on('offline', () => netState(false));
-    c.on('error', fail);
-    setTimeout(() => fail('timeout'), 10000);
-  });
-}
-function pub(topic, obj){ if (mq) try { mq.publish(topic, JSON.stringify(obj), { qos:1 }); } catch(e) {} }
-function parse(buf){ try { const m = JSON.parse(typeof buf === 'string' ? buf : dec.decode(buf)); return m && typeof m === 'object' ? m : null; } catch(e) { return null; } }
-function netState(ok){
-  if (!roomCode || closed) return;
-  const e = $('gameErr');
-  if (!ok) e.textContent = 'Verbindung unterbrochen – verbinde neu …';
-  else if (e.textContent.startsWith('Verbindung unterbrochen')) e.textContent = '';
-}
-
-// ---------- HOST ----------
-const guests = {};   // Platz -> { id, last }
-async function hostGame(){
+function hostGame(tries=0){
   $('hostBtn').disabled = $('joinBtn').disabled = true;
   $('lobbyErr').textContent = 'Raum wird erstellt …';
   const code = randomCode();
-  try { mq = await connectBroker({ topic: T(code,'host'), payload: JSON.stringify({ t:'closed' }), qos:1, retain:false }); }
-  catch(e) { return lobbyError('Keine Verbindung zum Spielserver. Bitte Internetverbindung prüfen und nochmal versuchen.'); }
-  mq.subscribe(T(code,'up'), { qos:1 });
-  mq.on('message', (topic, buf) => {
-    const m = parse(buf);
-    if (m && typeof m.from === 'string' && /^[a-z0-9]{8,24}$/.test(m.from)) hostHandle(m.from, m);
+  peer = new Peer(PREFIX + code);
+  peer.on('open', () => {
+    isHost = true; roomCode = code; mySeat = 0;
+    S = freshState(); S.seats[0] = newPlayer(myName());
+    enterGame(); broadcast();
   });
-  isHost = true; roomCode = code; mySeat = 0;
-  S = freshState(); S.seats[0] = newPlayer(myName());
-  enterGame(); broadcast();
-  setInterval(hostTick, 3000);
+  peer.on('connection', conn => {
+    conn.on('data', msg => hostHandle(conn, msg));
+    conn.on('close', () => hostDrop(conn));
+    conn.on('error', () => hostDrop(conn));
+  });
+  peer.on('error', err => {
+    if (err.type === 'unavailable-id' && tries < 5) { peer.destroy(); return hostGame(tries+1); }
+    if (!S) lobbyError('Konnte keinen Raum erstellen (' + err.type + '). Internetverbindung prüfen.');
+  });
+  peer.on('disconnected', () => { try { peer.reconnect(); } catch(e) {} });
 }
 function randomCode(){ const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let c=''; for(let i=0;i<6;i++) c+=A[Math.floor(Math.random()*A.length)]; return c; }
-function seatOf(id){ const k = Object.keys(guests).find(s => guests[s].id === id); return k === undefined ? -1 : +k; }
-function toGuest(id, m){ pub(T(roomCode, 'to/' + id), m); }
 
-function hostHandle(id, msg){
-  const seat = seatOf(id);
-  if (seat >= 0) guests[seat].last = Date.now();
-  if (msg.t === 'hello') {
-    if (msg.v !== VERSION) return toGuest(id, { t:'version', v:VERSION });
-    if (seat >= 0) return broadcast();                 // schon drin (z. B. nach Neu-Laden) -> Stand schicken
+function hostHandle(conn, msg){
+  if (!msg || typeof msg !== 'object') return;
+  let seat = Object.keys(conns).find(k => conns[k] === conn);
+  seat = seat === undefined ? -1 : +seat;
+  if (msg.t === 'hello' && seat < 0) {
+    if (msg.v !== VERSION) { conn.send({ t:'version', v:VERSION }); conn.send({ t:'full', reason:'version' }); setTimeout(() => conn.close(), 800); return; }
     const free = S.seats.findIndex(x => !x);
-    if (free < 0) return toGuest(id, { t:'full' });
-    guests[free] = { id, last: Date.now() };
+    if (free < 0) { conn.send({ t:'full' }); setTimeout(() => conn.close(), 500); return; }
+    conns[free] = conn;
     const waiting = S.phase === 'play';
     S.seats[free] = newPlayer(cleanName(msg.name), waiting);
     log({ sys: waiting ? `👋 ${S.seats[free].name} ist da und spielt ab der nächsten Runde mit.` : `👋 ${S.seats[free].name} ist beigetreten.` });
-    return broadcast();
+    broadcast();
+    return;
   }
-  if (seat < 0) { if (msg.t === 'ping') toGuest(id, { t:'gone' }); return; }
-  if (msg.t === 'bye')  return hostDrop(seat);
+  if (seat < 0) return;
   if (msg.t === 'draw') doDraw(seat);
   if (msg.t === 'play') doPlay(seat);
 }
-function hostTick(){
-  const now = Date.now();
-  Object.keys(guests).forEach(s => { if (now - guests[s].last > 45000) hostDrop(+s); });   // 45 s nichts gehört -> weg
-  Object.values(guests).forEach(g => toGuest(g.id, { t:'ping' }));
-}
-function hostDrop(i){
-  if (!guests[i]) return;
-  const id = guests[i].id;
-  delete guests[i];
-  const p = S.seats[i];
+function hostDrop(conn){
+  const seat = Object.keys(conns).find(k => conns[k] === conn);
+  if (seat === undefined) return;
+  delete conns[seat];
+  const i = +seat, p = S.seats[i];
   const wasTurn = effTurn(S) === i;
   if (wasTurn && S.hand !== null) { S.deck.push(S.hand); S.hand = null; }
   log({ sys:`🚪 ${p.name} hat den Raum verlassen.` });
   S.seats[i] = null;
   if (S.phase === 'play' && !checkWin() && wasTurn) advance(i);
-  toGuest(id, { t:'gone' });
   broadcast();
 }
 
@@ -412,62 +379,41 @@ function viewFor(seat){
   };
 }
 function broadcast(){
-  Object.entries(guests).forEach(([seat, g]) => toGuest(g.id, { t:'state', v:VERSION, state: viewFor(+seat), you:+seat }));
+  Object.entries(conns).forEach(([seat, c]) => { try { c.send({ t:'state', v:VERSION, state: viewFor(+seat), you:+seat }); } catch(e) {} });
   V = viewFor(mySeat);
   render();
 }
 
-// ---------- GAST ----------
-async function joinGame(){
+// ================= GAST =================
+function joinGame(){
   const code = $('codeIn').value.trim().toUpperCase();
   if (!/^[A-Z0-9]{6}$/.test(code)) return lobbyError('Bitte den 6-stelligen Raum-Code eingeben.');
   $('hostBtn').disabled = $('joinBtn').disabled = true;
   $('lobbyErr').textContent = 'Verbinde …';
-  try { mq = await connectBroker({ topic: T(code,'up'), payload: JSON.stringify({ t:'bye', from:myId }), qos:1, retain:false }); }
-  catch(e) { return lobbyError('Keine Verbindung zum Spielserver. Bitte Internetverbindung prüfen und nochmal versuchen.'); }
-  joinCode = code;
-  const notFound = setTimeout(() => { if (!roomCode) { lobbyError('Kein Raum mit diesem Code gefunden.'); try { mq.end(true); } catch(e) {} mq = null; } }, 9000);
-  const stop = msg => { clearTimeout(notFound); lobbyError(msg); try { mq.end(true); } catch(e) {} mq = null; };
-  mq.on('message', (topic, buf) => {
-    const msg = parse(buf); if (!msg || closed) return;
-    hostLast = Date.now();
-    if (msg.t === 'closed') return roomClosed('Der Raum wurde geschlossen (der Ersteller ist weg).');
-    if (msg.t === 'gone' && roomCode) return roomClosed('Du warst zu lange weg und wurdest aus dem Raum genommen. Lade die Seite neu und tritt nochmal bei.');
-    if (msg.t === 'version') return stop('⚠️ Du und der Raum-Ersteller habt verschiedene Versionen des Spiels. Bitte ALLE die Seite neu laden (Link mit ?v=' + VERSION + ' am Ende öffnen) und einen neuen Raum erstellen.');
-    if (msg.t === 'full') return stop('Der Raum ist schon voll (4 Spieler).');
-    if (msg.t === 'state') {
-      clearTimeout(notFound);
-      if (msg.v !== VERSION) return stop('⚠️ Der Raum-Ersteller hat eine andere Version des Spiels. Bitte alle die Seite neu laden.');
-      V = sanitize(msg.state); mySeat = intIn(msg.you, 0, 3, -1);
-      if (!roomCode) { roomCode = code; enterGame(); startGuestTick(); } else render();
-    }
+  peer = new Peer();
+  let opened = false;
+  const timeout = setTimeout(() => { if (!opened) { lobbyError('Raum nicht gefunden oder nicht erreichbar.'); try{peer.destroy();}catch(e){} } }, 12000);
+  peer.on('open', () => {
+    hostConn = peer.connect(PREFIX + code, { reliable:true });
+    hostConn.on('open', () => { opened = true; clearTimeout(timeout); hostConn.send({ t:'hello', name: myName(), v:VERSION }); });
+    hostConn.on('data', msg => {
+      if (!msg || typeof msg !== 'object') return;
+      if (msg.t === 'version' || (msg.t === 'full' && msg.reason === 'version')) { clearTimeout(timeout); lobbyError('⚠️ Du und der Raum-Ersteller habt verschiedene Versionen des Spiels. Bitte ALLE die Seite neu laden (ggf. Tab schließen und neu öffnen) und einen neuen Raum erstellen.'); return; }
+      if (msg.t === 'full') { clearTimeout(timeout); lobbyError('Der Raum ist schon voll (4 Spieler).'); return; }
+      if (msg.t === 'state' && msg.v !== VERSION) { clearTimeout(timeout); lobbyError('⚠️ Der Raum-Ersteller hat eine alte Version des Spiels. Er soll die Seite neu laden und einen neuen Raum erstellen.'); return; }
+      if (msg.t === 'state') {
+        V = sanitize(msg.state); mySeat = intIn(msg.you, 0, 3, -1);
+        if (!roomCode) { roomCode = code; enterGame(); } else render();
+      }
+    });
+    hostConn.on('close', () => { if (roomCode) { $('gameErr').textContent = 'Der Raum wurde geschlossen (der Ersteller ist weg).'; disableAll(); } });
   });
-  mq.subscribe([T(code, 'to/' + myId), T(code, 'host')], { qos:1 }, () => pub(T(code,'up'), { t:'hello', from:myId, name: myName(), v:VERSION }));
+  peer.on('error', err => {
+    clearTimeout(timeout);
+    if (err.type === 'peer-unavailable') lobbyError('Kein Raum mit diesem Code gefunden.');
+    else if (!roomCode) lobbyError('Verbindungsfehler (' + err.type + ').');
+  });
 }
-function startGuestTick(){
-  hostLast = Date.now();
-  setInterval(() => {
-    if (closed) return;
-    pub(T(joinCode,'up'), { t:'ping', from:myId });
-    if (Date.now() - hostLast > 40000) roomClosed('Der Raum wurde geschlossen (der Ersteller ist weg).');
-  }, 4000);
-}
-function roomClosed(msg){
-  if (closed) return;
-  closed = true;
-  $('gameErr').textContent = msg;
-  disableAll();
-}
-// Handy war im Hintergrund -> beim Zurückkommen sofort melden
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState !== 'visible' || !mq || closed) return;
-  if (!isHost && roomCode) { hostLast = Date.now(); pub(T(joinCode,'up'), { t:'hello', from:myId, name: myName(), v:VERSION }); }
-});
-window.addEventListener('pagehide', () => {
-  if (!mq || !roomCode) return;
-  if (isHost) pub(T(roomCode,'host'), { t:'closed' });
-  else pub(T(joinCode,'up'), { t:'bye', from:myId });
-});
 
 function sanitize(d){
   const s = { phase:'lobby', seats:[null,null,null,null], turn:0, pile:[], log:[], winner:null, round:0, deckCount:0, hasHand:false, hand:null };
@@ -603,7 +549,7 @@ function render(){
 function act(type){
   if (!V) return;
   if (isHost) { type==='draw' ? doDraw(mySeat) : doPlay(mySeat); }
-  else if (mq && !closed) pub(T(joinCode,'up'), { t:type, from:myId });
+  else if (hostConn && hostConn.open) hostConn.send({ t:type });
 }
 $('hostBtn').addEventListener('click', () => { if (!$('nameIn').value.trim()) return lobbyError('Bitte gib zuerst deinen Namen ein.'); hostGame(); });
 $('joinBtn').addEventListener('click', () => { if (!$('nameIn').value.trim()) return lobbyError('Bitte gib zuerst deinen Namen ein.'); joinGame(); });
@@ -622,7 +568,7 @@ document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || !V) return;
   if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); act(V.hasHand ? 'play' : 'draw'); }
 });
-window.addEventListener('beforeunload', e => { if (isHost && Object.keys(guests).length) { e.preventDefault(); e.returnValue = ''; } });
+window.addEventListener('beforeunload', e => { if (isHost && Object.keys(conns).length) { e.preventDefault(); e.returnValue = ''; } });
 </script>
 </body>
 </html>
