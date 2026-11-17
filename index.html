@@ -194,7 +194,7 @@ const CARDS = [
 ];
 const DECK_MIX = [8, 6, 10];   // Anzahl je Karte im Stapel: infiziert, Frau, tot
 const MAX_HEARTS = 3;
-const VERSION = 6;   // bei jeder Regeländerung erhöhen – alte und neue Version können nicht zusammen spielen
+const VERSION = 7;   // bei jeder Regeländerung erhöhen – alte und neue Version können nicht zusammen spielen
 const $ = id => document.getElementById(id);
 
 const shuffle = a => { for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
@@ -314,12 +314,46 @@ function doPlay(seat){
 
 // ================= VERBINDUNG (öffentlicher HiveMQ-Server, funktioniert in jedem Netz) =================
 const BROKER = 'wss://broker.hivemq.com:8884/mqtt';
-const ROOMS = 'dkspiel-ischan/raum/';
-const T = (code, sub) => ROOMS + code + '/' + sub;
+const ROOMS = 'dkspiel-ischan/r7/';
+let roomKey = null, roomTopic = '';
+const T = (code, sub) => ROOMS + roomTopic + '/' + sub;   // der Raum-Code selbst steht nie auf dem Server
+
+// ---------- Verschlüsselung: Schlüssel und Kanal-Name werden aus dem Raum-Code berechnet ----------
+const enc = new TextEncoder();
+async function deriveRoom(code){
+  const base = await crypto.subtle.importKey('raw', enc.encode(code), 'PBKDF2', false, ['deriveBits']);
+  const bits = new Uint8Array(await crypto.subtle.deriveBits({ name:'PBKDF2', salt: enc.encode('dkspiel-ischan-v7'), iterations:150000, hash:'SHA-256' }, base, 512));
+  roomKey = await crypto.subtle.importKey('raw', bits.slice(0,32), 'AES-GCM', false, ['encrypt','decrypt']);
+  roomTopic = Array.from(bits.slice(32,48), b => b.toString(16).padStart(2,'0')).join('');
+}
+function b64(u8){ let s=''; for (let i=0;i<u8.length;i+=8192) s += String.fromCharCode.apply(null, u8.subarray(i,i+8192)); return btoa(s); }
+function unb64(str){ const s = atob(str), u = new Uint8Array(s.length); for (let i=0;i<s.length;i++) u[i] = s.charCodeAt(i); return u; }
+async function seal(obj){
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name:'AES-GCM', iv }, roomKey, enc.encode(JSON.stringify(obj))));
+  const all = new Uint8Array(12 + ct.length); all.set(iv); all.set(ct, 12);
+  return b64(all);
+}
+async function unseal(str){
+  try {
+    const all = unb64(str);
+    const pt = await crypto.subtle.decrypt({ name:'AES-GCM', iv: all.slice(0,12) }, roomKey, all.slice(12));
+    const m = JSON.parse(dec.decode(pt));
+    return m && typeof m === 'object' ? m : null;
+  } catch(e) { return null; }   // falscher Schlüssel oder Müll -> ignorieren
+}
+let sendQ = Promise.resolve(), recvQ = Promise.resolve();   // Reihenfolge der Nachrichten beibehalten
+function onMsg(handler){
+  return (topic, buf) => {
+    const str = typeof buf === 'string' ? buf : dec.decode(buf);
+    recvQ = recvQ.then(async () => { const m = await unseal(str); if (m) handler(m); }).catch(() => {});
+  };
+}
 let mq = null, myId = '', joinCode = '', closed = false, hostLast = 0;
 try { myId = sessionStorage.getItem('dk-id') || ''; } catch(e) {}
 if (!/^[a-z0-9]{8,24}$/.test(myId)) { myId = (Math.random().toString(36).slice(2,10) + Date.now().toString(36)).slice(0,16); try { sessionStorage.setItem('dk-id', myId); } catch(e) {} }
 const dec = new TextDecoder();
+if (!window.crypto || !crypto.subtle) document.addEventListener('DOMContentLoaded', () => lobbyError('Dein Browser unterstützt keine Verschlüsselung – bitte Chrome, Safari oder Firefox aktuell verwenden.'));
 
 function connectBroker(will){
   return new Promise((resolve, reject) => {
@@ -334,8 +368,10 @@ function connectBroker(will){
     setTimeout(() => fail('timeout'), 10000);
   });
 }
-function pub(topic, obj){ if (mq) try { mq.publish(topic, JSON.stringify(obj), { qos:1 }); } catch(e) {} }
-function parse(buf){ try { const m = JSON.parse(typeof buf === 'string' ? buf : dec.decode(buf)); return m && typeof m === 'object' ? m : null; } catch(e) { return null; } }
+function pub(topic, obj){
+  if (!mq) return;
+  sendQ = sendQ.then(async () => { const payload = await seal(obj); if (mq) mq.publish(topic, payload, { qos:1 }); }).catch(() => {});
+}
 function netState(ok){
   if (!roomCode || closed) return;
   const e = $('gameErr');
@@ -349,13 +385,15 @@ async function hostGame(){
   $('hostBtn').disabled = $('joinBtn').disabled = true;
   $('lobbyErr').textContent = 'Raum wird erstellt …';
   const code = randomCode();
-  try { mq = await connectBroker({ topic: T(code,'host'), payload: JSON.stringify({ t:'closed' }), qos:1, retain:false }); }
+  try {
+    await deriveRoom(code);
+    mq = await connectBroker({ topic: T(code,'host'), payload: await seal({ t:'closed' }), qos:1, retain:false });
+  }
   catch(e) { return lobbyError('Keine Verbindung zum Spielserver. Bitte Internetverbindung prüfen und nochmal versuchen.'); }
   mq.subscribe(T(code,'up'), { qos:1 });
-  mq.on('message', (topic, buf) => {
-    const m = parse(buf);
-    if (m && typeof m.from === 'string' && /^[a-z0-9]{8,24}$/.test(m.from)) hostHandle(m.from, m);
-  });
+  mq.on('message', onMsg(m => {
+    if (typeof m.from === 'string' && /^[a-z0-9]{8,24}$/.test(m.from)) hostHandle(m.from, m);
+  }));
   isHost = true; roomCode = code; mySeat = 0;
   S = freshState(); S.seats[0] = newPlayer(myName());
   enterGame(); broadcast();
@@ -423,13 +461,16 @@ async function joinGame(){
   if (!/^[A-Z0-9]{6}$/.test(code)) return lobbyError('Bitte den 6-stelligen Raum-Code eingeben.');
   $('hostBtn').disabled = $('joinBtn').disabled = true;
   $('lobbyErr').textContent = 'Verbinde …';
-  try { mq = await connectBroker({ topic: T(code,'up'), payload: JSON.stringify({ t:'bye', from:myId }), qos:1, retain:false }); }
+  try {
+    await deriveRoom(code);
+    mq = await connectBroker({ topic: T(code,'up'), payload: await seal({ t:'bye', from:myId }), qos:1, retain:false });
+  }
   catch(e) { return lobbyError('Keine Verbindung zum Spielserver. Bitte Internetverbindung prüfen und nochmal versuchen.'); }
   joinCode = code;
   const notFound = setTimeout(() => { if (!roomCode) { lobbyError('Kein Raum mit diesem Code gefunden.'); try { mq.end(true); } catch(e) {} mq = null; } }, 9000);
   const stop = msg => { clearTimeout(notFound); lobbyError(msg); try { mq.end(true); } catch(e) {} mq = null; };
-  mq.on('message', (topic, buf) => {
-    const msg = parse(buf); if (!msg || closed) return;
+  mq.on('message', onMsg(msg => {
+    if (closed) return;
     hostLast = Date.now();
     if (msg.t === 'closed') return roomClosed('Der Raum wurde geschlossen (der Ersteller ist weg).');
     if (msg.t === 'gone' && roomCode) return roomClosed('Du warst zu lange weg und wurdest aus dem Raum genommen. Lade die Seite neu und tritt nochmal bei.');
@@ -441,7 +482,7 @@ async function joinGame(){
       V = sanitize(msg.state); mySeat = intIn(msg.you, 0, 3, -1);
       if (!roomCode) { roomCode = code; enterGame(); startGuestTick(); } else render();
     }
-  });
+  }));
   mq.subscribe([T(code, 'to/' + myId), T(code, 'host')], { qos:1 }, () => pub(T(code,'up'), { t:'hello', from:myId, name: myName(), v:VERSION }));
 }
 function startGuestTick(){
