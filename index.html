@@ -248,6 +248,8 @@
       👻 <b>Leutrim</b> – verschwindet für 1 bis 20 Züge. Taucht er wieder auf, klaut er einem zufälligen Spieler eine Karte und gibt sie dir. Hat der keine Karten, wird er stattdessen um 1 ❤️ geheilt.<br>
       ⚡ <b>RCD</b> – 50/50: entweder bekommen alle 2 ❤️ oder alle verlieren 2 ❤️ (Schild blockt).<br>
       📝 <b>Herr Barthel</b> – füllt die Hände aller Spieler mit 📄 Prüfungsaufgaben auf (die machen nichts). Mit 20 % Chance bekommt einer stattdessen die 🔑 Lösung: Wer sie spielt, wird alle Prüfungsaufgaben los und bekommt „Ich hasse meine Frau“.<br>
+      🤓 <b>Ich bin eh Smarter</b> – die Chancen aller Karten werden zufällig neu verteilt und der Stapel neu gemischt. Das gilt, bis jemand gewonnen hat.<br>
+      🍺 <b>Bier</b> – du bekommst 1 ❤️. Ab dem 4. Bier in derselben Runde verlierst du stattdessen bei jedem weiteren Bier 1 ❤️. Die Biere sieht man am Spielerfeld.<br>
       🔗 <b>Goonnectet</b> – du wählst einen Spieler. Bis zu deinem nächsten Zug bekommt ihr beide jeden Schaden und jede Heilung ab, die einer von euch bekommt.<br>
       Angriffe sind 💀, 🦠, 😱, 👨‍🏫, 😴, 🦗🦗🦗, 🐻, 🦝 und 🪑. Die Reihenfolge: zuerst Meowskulls 😼, dann Schild 🛡️.<br><br>
       Ohne Herzen bist du raus und schaust bis zum Ende der Runde zu. <b>Wer als Letztes noch Herzen hat, gewinnt.</b>
@@ -289,12 +291,16 @@ const CARDS = [
   { emoji:"📝", text:"Herr Barthel",         eff:"Füllt alle Hände mit Prüfungsaufgaben. 20 %: einer bekommt die Lösung", zh:"巴特尔先生", zeff:"用考试题填满所有人的手牌" },
   { emoji:"📄", text:"Prüfungsaufgabe",      eff:"Hat keinen Effekt",                                           zh:"考试题",       zeff:"没有效果" },
   { emoji:"🔑", text:"Lösung",               eff:"Du bekommst „Ich hasse meine Frau“, alle Prüfungsaufgaben verschwinden", zh:"答案", zeff:"你得到「我讨厌我老婆」，考试题消失" },
+  { emoji:"🤓", text:"Ich bin eh Smarter",   eff:"Alle Karten-Chancen werden zufällig neu verteilt – bis einer gewinnt", zh:"反正我更聪明", zeff:"所有牌的概率随机改变，直到有人获胜" },
+  { emoji:"🍺", text:"Bier",                 eff:"+1 ❤️ für dich. Ab dem 4. Bier pro Runde: −1 ❤️",           zh:"啤酒",         zeff:"你+1❤️。每轮第4杯起：−1❤️" },
 ];
 // Anzahl je Karte im Stapel (gleiche Reihenfolge wie oben). 0 = liegt nicht im Stapel.
-const DECK_MIX = [6, 6, 8, 3, 5, 3, 3, 4, 3, 2, 3, 0, 3,  2, 2, 3, 7, 3, 3,  2, 3, 2, 3, 3, 3, 3, 2, 2, 3, 2, 0, 0];
+const BASE_MIX = [6, 6, 8, 3, 5, 3, 3, 4, 3, 2, 3, 0, 3,  2, 2, 3, 7, 3, 3,  2, 3, 2, 3, 3, 3, 3, 2, 2, 3, 2, 0, 0,  2, 3];
+const DECK_MIX = BASE_MIX.map(n => n * 2);           // alles doppelt
 const SCHOKO = 11, SCHOKO_CHANCE = 0.0001, GRILL = 16, LEON = 10, FREDDY = 17;
+const SMARTER = 32, BEER = 33;
 const MODDED = 19, PASCAL = 20, KEVIN = 21, DONER = 22, WANU = 23, CHAIR = 24, TORKE = 25, SPECK = 26, LEUTRIM = 27, RCD = 28, BARTHEL = 29, TASK = 30, SOLUTION = 31;
-const BG_COUNT = 5;                                  // Hintergrundbilder img/bg0.jpg … bg4.jpg
+const BG_COUNT = 12;                                 // Hintergrundbilder img/bg0.jpg … bg11.jpg
 // Handkarten als Zahl: Karte + 100 (geheim) + 1000·(Tarnkarte+1)
 const HIDDEN = 100, DIS = 1000;
 const cardOf = x => x % HIDDEN;
@@ -307,12 +313,12 @@ const N = 6;                                         // Plätze im Raum
 const SEATS = [...Array(N).keys()];
 const HAND_MAX = 3;
 const MAX_HEARTS = 3;
-const VERSION = 12;   // bei jeder Regeländerung erhöhen – alte und neue Version können nicht zusammen spielen
+const VERSION = 13;   // bei jeder Regeländerung erhöhen – alte und neue Version können nicht zusammen spielen
 const $ = id => document.getElementById(id);
 
 const shuffle = a => { for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
 const pick = a => a[Math.floor(Math.random()*a.length)];
-const newDeck = () => shuffle(DECK_MIX.flatMap((n,i) => Array(n).fill(i)));
+const newDeck = (mix = (typeof S !== 'undefined' && S && S.mix) || DECK_MIX) => shuffle(mix.flatMap((n,i) => Array(n).fill(i)));
 const isCard = c => Number.isInteger(c) && c>=0 && c<CARDS.length;
 const cleanName = n => (typeof n==='string' ? n.trim().slice(0,14) : '') || 'Spieler';
 const intIn = (n, lo, hi, d) => Number.isInteger(n) && n>=lo && n<=hi ? n : d;
@@ -337,11 +343,11 @@ function lobbyError(msg){ $('lobbyErr').textContent = msg; $('hostBtn').disabled
 
 // ================= HOST: Spiellogik =================
 const newPlayer = (name, waiting=false, bot=false) => ({ name, bot, hearts: waiting ? 0 : MAX_HEARTS, infected:0, pending:0, shield:false, reflect:false,
-  skip:false, fur:false, trap:false, blue:false, alive: !waiting, waiting });
+  skip:false, fur:false, trap:false, blue:false, beer:0, alive: !waiting, waiting });
 
 function freshState(){
   return { phase:'lobby', seats:Array(N).fill(null), hands:SEATS.map(() => []), deck:newDeck(), turn:0, turnNo:0, dir:1, step:'draw', drew:false,
-           pile:[], log:[], winner:null, round:Date.now(), zh:0, link:null, freddy:null, fid:0, bg:-1, leutrim:[], lastCard:-1 };
+           pile:[], log:[], winner:null, round:Date.now(), zh:0, link:null, freddy:null, fid:0, bg:-1, leutrim:[], lastCard:-1, mix:null };
 }
 function aliveSeats(st){ return SEATS.filter(i => st.seats[i] && st.seats[i].alive); }
 function effTurn(st){
@@ -486,7 +492,8 @@ function startGame(){
   if (n < 2) return;
   S.seats = S.seats.map(p => p ? newPlayer(p.name, false, !!p.bot) : null);
   S.hands = SEATS.map(() => []);
-  Object.assign(S, { deck:newDeck(), pile:[], winner:null, round:Date.now(), dir:1, zh:0, link:null, freddy:null, phase:'play', bg:-1, leutrim:[], lastCard:-1, turnNo:0 });
+  S.mix = null;
+  Object.assign(S, { deck:newDeck(DECK_MIX), pile:[], winner:null, round:Date.now(), dir:1, zh:0, link:null, freddy:null, phase:'play', bg:-1, leutrim:[], lastCard:-1, turnNo:0 });
   beginTurn(pick(aliveSeats(S)));
   log({ sys:`🃏 Neue Runde! ${S.seats[S.turn].name} fängt an.` });
   broadcast();
@@ -533,6 +540,7 @@ function effect(seat, c, tgt){
   const me = S.seats[seat];
   const nextP = () => S.seats[nextAliveSeat(S, seat)];
   const chosen = tgt >= 0 ? S.seats[tgt] : null;
+  if (CARDS[c].choose && c !== WANU && (!chosen || !chosen.alive)) return { res:'aber es ist niemand mehr da 🤷' };
   switch (c) {
     case SCHOKO: {
       aliveSeats(S).forEach(i => knockOut(i));
@@ -640,6 +648,18 @@ function effect(seat, c, tgt){
       return { res: slots.length ? `füllt alle Hände mit Prüfungsaufgaben 📝 (${slots.length} Stück) – hat vielleicht jemand die Lösung?` : 'aber alle Hände sind schon voll' };
     }
     case TASK: return { res:'gibt eine Prüfungsaufgabe ab … nichts passiert 📄' };
+    case SMARTER: {                                // 🤓 alle Chancen zufällig – bis jemand gewinnt
+      S.mix = DECK_MIX.map(n => n > 0 ? 1 + Math.floor(Math.random() * 16) : 0);
+      S.deck = newDeck(S.mix);
+      const top = S.mix.map((n, k) => [n, k]).sort((a, b) => b[0] - a[0]).slice(0, 3).map(([, k]) => CARDS[k].emoji).join(' ');
+      return { res:`🤓 alle Karten-Chancen sind jetzt durcheinander (Stapel neu gemischt) – am häufigsten jetzt: ${top}` };
+    }
+    case BEER: {                                   // 🍺 bis 3 Bier heilt, danach tut es weh
+      me.beer = (me.beer || 0) + 1;
+      if (me.beer <= 3) { const h = heal(me); return { res:`trinkt Bier Nr. ${me.beer} 🍺 – ${h === 'heal' ? 'ein grünes Herz wird wieder rot ❤️' : h === 'plus' ? `+1 Herz (${H(me.hearts)})` : 'aber hat schon volle Herzen'}` }; }
+      hurt(me, 1);
+      return { res:`trinkt Bier Nr. ${me.beer} 🍺🥴 – zu viel! −1 Herz (${H(Math.max(me.hearts,0))} übrig)` };
+    }
     case SOLUTION: {
       const h = S.hands[seat];
       const n = h.filter(x => cardOf(x) === TASK).length;
@@ -667,7 +687,7 @@ function doPlay(seat, idx, tgt, all3){
     const real = hand.map(cardOf); hand.length = 0;
     S.pile.push(GRILL, GRILL, GRILL); S.pile = S.pile.slice(-4);
     const entry = log({ name: me.name, c: GRILL, res:'…', combo:true });
-    if (freddyCheck(seat, entry)) return finishPlay(seat);
+    if (freddyCheck(seat, entry) || checkWin()) return finishPlay(seat);
     if (real.every(c => c === GRILL)) {
       const p = S.seats[nextAliveSeat(S, seat)];
       entry.target = p.name; entry.res = 'DREIFACH-GRILLENBERGER 🦗🦗🦗 → ' + attack(me, p, dmg(3));
@@ -691,7 +711,7 @@ function doPlay(seat, idx, tgt, all3){
   if (c !== LEUTRIM) { S.pile.push(c); S.pile = S.pile.slice(-4); }   // Leutrim verschwindet einfach
   const d = disgOf(x);
   const entry = log({ name: me.name, c, hid: isHidden(x), dis: (!isHidden(x) && d !== null) ? d : undefined, res:'…' });
-  if (freddyCheck(seat, entry)) return finishPlay(seat);
+  if (freddyCheck(seat, entry) || checkWin()) { if (S.phase === 'over' && entry.res === '…') entry.res = 'zu spät – das Spiel ist schon vorbei 🐻'; return finishPlay(seat); }
   const t = CARDS[c].choose ? pickTarget(c, seat, shown === c ? tgt : undefined) : -1;
   const r = effect(seat, c, t);
   entry.res = r.res; if (r.target) entry.target = r.target; if (r.fid) entry.fid = r.fid;
@@ -744,6 +764,7 @@ function botDecide(seat){
   const score = c => {
     if (c === -1) return 1;
     if ([1, 9, 22, SOLUTION].includes(c)) return hurtMe ? 8 : 0;
+    if (c === BEER) return (me.beer || 0) >= 3 ? (me.hearts > 1 ? -2 : -20) : (hurtMe ? 8 : 0);
     if ([0, 2, 7, 24, 17, 8].includes(c)) return 5;
     if (c === WANU) return others.some(i => S.hands[i].length) ? 4 : -1;
     if (c === 4) return me.shield ? -1 : 4;
@@ -991,7 +1012,7 @@ function sanitize(d){
     const x = d.seats[i]; if (!x || typeof x !== 'object') return null;
     const hearts = intIn(x.hearts, 0, MAX_HEARTS, 0);
     return { name: cleanName(x.name), hearts, infected: intIn(x.infected, 0, hearts, 0), shield: !!x.shield, reflect: !!x.reflect, skip: !!x.skip, fur: !!x.fur,
-             blue: !!x.blue, bot: !!x.bot, pascal: intIn(x.pascal, 0, HAND_MAX, 0), cards: intIn(x.cards, 0, HAND_MAX, 0), alive: !!x.alive, waiting: !!x.waiting };
+             blue: !!x.blue, bot: !!x.bot, beer: intIn(x.beer, 0, 99, 0), pascal: intIn(x.pascal, 0, HAND_MAX, 0), cards: intIn(x.cards, 0, HAND_MAX, 0), alive: !!x.alive, waiting: !!x.waiting };
   });
   s.turn = intIn(d.turn, 0, N-1, 0);
   s.dir = d.dir === -1 ? -1 : 1;
@@ -1096,6 +1117,7 @@ function render(){
       if (p.infected) info.push(L('infiziert!', '感染了！'));
       if (p.skip) info.push(L('😴 setzt aus', '😴 跳过'));
       if (p.fur) info.push('🦊');
+      if (p.beer) info.push('🍺'.repeat(Math.min(p.beer, 5)) + (p.beer > 5 ? '…' : ''));
       if (V.link && (V.link.a === i || V.link.b === i)) { const o = V.seats[V.link.a === i ? V.link.b : V.link.a]; if (o) info.push('🔗 ' + o.name); }
     }
     st.textContent = info.join(' · ');
