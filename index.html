@@ -7,7 +7,7 @@
 <title>Das Kartenspiel</title>
 <script src="https://unpkg.com/mqtt@5.16.1/dist/mqtt.min.js"></script>
 <style>
-  :root { --felt:#1f5f3f; --felt2:#174a31; --gold:#f2c14e; --text:#f4f1e8; --dim:#b9cbbf; --cw:150px; }
+  :root { --felt:#1f5f3f; --felt2:#174a31; --gold:#f2c14e; --text:#f4f1e8; --dim:#b9cbbf; --cw:140px; --cws:110px; }
   * { box-sizing:border-box; }
   body { margin:0; min-height:100vh; color:var(--text); font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
          background:radial-gradient(ellipse at center, var(--felt) 0%, var(--felt2) 75%, #0f3322 100%);
@@ -70,12 +70,28 @@
   .log div { padding:3px 0; border-bottom:1px solid rgba(255,255,255,.07); }
   .log div:last-child { border:none; }
   .log .n { color:var(--gold); font-weight:700; }
+  .slot.small .card, .slot.small .empty, .slot.small .pile { width:var(--cws); height:calc(var(--cws) * 1.43); }
+  .handlbl { font-size:13px; color:var(--dim); margin:4px 0 0; text-align:center; }
+  .slot.small .front .eff { display:none; }
+  .slot.small .front .emoji { font-size:30px; }
+  .slot.small .front .txt { font-size:15px; }
+  .handrow { display:flex; gap:12px; justify-content:center; min-height:calc(var(--cw) * 1.43 + 18px); margin-bottom:8px; padding-top:18px; }
+  .handrow .card { cursor:pointer; transition:transform .15s; }
+  .handrow .card.sel { transform:translateY(-12px); }
+  .handrow .card.sel .face { box-shadow:0 0 0 4px var(--gold), 0 10px 20px rgba(0,0,0,.4); }
+  .handrow .card.new { animation:pop .45s ease-out; }
+  @keyframes pop { from { transform:translateY(-40px) scale(.7); opacity:0; } to { transform:none; opacity:1; } }
+  .handrow .empty.slotfree { opacity:.5; }
   .rules { width:min(100%, 680px); color:var(--dim); font-size:13px; margin-top:12px; line-height:1.6; }
   .rules summary { cursor:pointer; color:var(--text); font-weight:600; }
 
   /* ===== Handy-Ansicht ===== */
   @media (max-width: 600px) {
-    :root { --cw: min(27vw, 112px); }
+    :root { --cw: min(28vw, 116px); --cws: min(21vw, 84px); }
+    .handrow { gap:8px; padding-top:16px; min-height:calc(var(--cw) * 1.43 + 16px); }
+    .slot.small .front .emoji { font-size:22px; }
+    .slot.small .front .txt { font-size:11.5px; }
+    .handlbl { font-size:12px; margin-bottom:2px; }
     body { padding:10px 10px 0; }
     h1 { font-size:20px; margin:2px 0 6px; }
     .sub { display:none; }
@@ -154,33 +170,37 @@
     <div class="players" id="players"></div>
     <div class="status" id="status"></div>
     <div class="table">
-      <div class="slot">
+      <div class="slot small">
         <div class="lbl">Stapel (<span id="deckCount">0</span>)</div>
         <div class="card deck" id="deck"><div class="stack"><div style="transform:translate(4px,4px)"></div><div style="transform:translate(2px,2px)"></div></div>
           <div class="inner"><div class="face back"></div></div></div>
       </div>
-      <div class="slot">
-        <div class="lbl" id="handLbl">Hand</div>
-        <div id="hand"><div class="empty">Noch keine Karte</div></div>
-      </div>
-      <div class="slot">
+      <div class="slot small">
         <div class="lbl">Zuletzt gespielt</div>
         <div class="pile" id="pile"><div class="empty">Leer</div></div>
       </div>
     </div>
+    <div class="lbl handlbl" id="handLbl">Deine Karten</div>
+    <div class="handrow" id="hand"></div>
     <div class="err" id="gameErr"></div>
     <div class="btns">
       <button id="drawBtn">Karte ziehen</button>
       <button id="playBtn" disabled>Ausspielen</button>
+      <button id="passBtn" class="sec" disabled>Zug beenden</button>
       <button id="startBtn" class="hidden">Spiel starten</button>
     </div>
     <div class="log" id="log"></div>
     <details class="rules" open>
       <summary>Regeln</summary>
-      Jeder startet mit <b>3 ❤️</b>. Wer dran ist, zieht eine Karte – nur er sieht sie – und spielt sie aus:<br>
-      💀 <b>Du bist tot</b> – trifft den nächsten Spieler (im Uhrzeigersinn), er verliert sofort 1 ❤️.<br>
-      🦠 <b>Du bist infiziert</b> – trifft den nächsten Spieler, eins seiner Herzen wird grün 💚. Ab der nächsten Runde (bei seinem übernächsten Zug) ist es weg.<br>
-      💍 <b>Ich hasse meine Frau</b> – wirkt auf dich: heilt ein grünes Herz, sonst bekommst du 1 ❤️ zurück (max. 3).<br>
+      Jeder startet mit <b>3 ❤️</b> und darf bis zu <b>3 Karten</b> auf der Hand haben – nur du siehst deine Karten.<br>
+      <b>Dein Zug:</b> Zieh eine Karte. Dann spielst du <b>eine</b> Karte aus <b>oder</b> beendest den Zug und hebst deine Karten für später auf.
+      Hast du am Anfang deines Zugs schon 3 Karten, ziehst du nicht, sondern <b>musst</b> eine ausspielen.<br><br>
+      💀 <b>Du bist tot</b> – der nächste Spieler (im Uhrzeigersinn) verliert 1 ❤️.<br>
+      🦠 <b>Du bist infiziert</b> – beim nächsten Spieler wird ein Herz grün 💚. Ab der nächsten Runde (bei seinem übernächsten Zug) ist es weg.<br>
+      😱 <b>IYAAAH</b> – <b>alle</b> verlieren 1 ❤️, auch du.<br>
+      😡 <b>Das geht nicht</b> – du bekommst ein Schild 🛡️. Es blockt den nächsten Angriff auf dich (💀, 🦠 oder 😱) und ist dann weg. Mehr als ein Schild geht nicht.<br>
+      💍 <b>Ich hasse meine Frau</b> – für dich: heilt ein grünes Herz, sonst bekommst du 1 ❤️ zurück (max. 3).<br>
+      🤷 <b>Ist mir egal</b> – die Handkarten aller Spieler werden zufällig getauscht. Jeder bekommt die Karten von jemand anderem.<br><br>
       Ohne Herzen bist du raus und schaust bis zum Ende der Runde zu. <b>Wer als Letztes noch Herzen hat, gewinnt.</b>
     </details>
     <div style="color:var(--dim); font-size:11px; margin:6px 0 14px;">Version <span class="ver"></span></div>
@@ -188,13 +208,17 @@
 
 <script>
 const CARDS = [
-  { emoji:"🦠", text:"Du bist infiziert",     eff:"Trifft den nächsten Spieler: ein Herz wird grün", target:true },
-  { emoji:"💍", text:"Ich hasse meine Frau", eff:"Für dich: heilt ein grünes Herz oder +1 ❤️", target:false },
-  { emoji:"💀", text:"Du bist tot",          eff:"Trifft den nächsten Spieler: er verliert 1 ❤️", target:true },
+  { emoji:"🦠", text:"Du bist infiziert",     eff:"Nächster Spieler: ein Herz wird grün", target:true },
+  { emoji:"💍", text:"Ich hasse meine Frau", eff:"Für dich: heilt Grün oder +1 ❤️" },
+  { emoji:"💀", text:"Du bist tot",          eff:"Nächster Spieler verliert 1 ❤️", target:true },
+  { emoji:"😱", text:"IYAAAH",               eff:"ALLE verlieren 1 ❤️ – auch du!" },
+  { emoji:"😡", text:"Das geht nicht",       eff:"Schild 🛡️: blockt den nächsten Angriff" },
+  { emoji:"🤷", text:"Ist mir egal",         eff:"Alle Handkarten werden zufällig getauscht" },
 ];
-const DECK_MIX = [8, 6, 10];   // Anzahl je Karte im Stapel: infiziert, Frau, tot
+const DECK_MIX = [6, 6, 8, 3, 5, 3];   // Anzahl je Karte: infiziert, Frau, tot, IYAAAH, Das geht nicht, Ist mir egal
+const HAND_MAX = 3;
 const MAX_HEARTS = 3;
-const VERSION = 7;   // bei jeder Regeländerung erhöhen – alte und neue Version können nicht zusammen spielen
+const VERSION = 8;   // bei jeder Regeländerung erhöhen – alte und neue Version können nicht zusammen spielen
 const $ = id => document.getElementById(id);
 
 const shuffle = a => { for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
@@ -223,10 +247,10 @@ function myName(){
 function lobbyError(msg){ $('lobbyErr').textContent = msg; $('hostBtn').disabled = $('joinBtn').disabled = false; }
 
 // ================= HOST: Spiellogik =================
-const newPlayer = (name, waiting=false) => ({ name, hearts: waiting ? 0 : MAX_HEARTS, infected:0, pending:0, alive: !waiting, waiting });
+const newPlayer = (name, waiting=false) => ({ name, hearts: waiting ? 0 : MAX_HEARTS, infected:0, pending:0, shield:false, alive: !waiting, waiting });
 
 function freshState(){
-  return { phase:'lobby', seats:[null,null,null,null], deck:newDeck(), hand:null, turn:0, pile:[], log:[], winner:null, round:Date.now() };
+  return { phase:'lobby', seats:[null,null,null,null], hands:[[],[],[],[]], deck:newDeck(), turn:0, step:'draw', drew:false, pile:[], log:[], winner:null, round:Date.now() };
 }
 function aliveSeats(st){ return [0,1,2,3].filter(i => st.seats[i] && st.seats[i].alive); }
 function effTurn(st){
@@ -237,21 +261,25 @@ function effTurn(st){
 function log(msg){ S.log.push(msg); S.log = S.log.slice(-40); }
 const H = n => n === 1 ? '1 Herz' : `${n} Herzen`;
 
-function knockOut(p){
-  p.alive = false; p.hearts = 0; p.infected = 0; p.pending = 0;
+function knockOut(i){
+  const p = S.seats[i];
+  p.alive = false; p.hearts = 0; p.infected = 0; p.pending = 0; p.shield = false;
+  S.hands[i] = [];
   log({ sys:`☠️ ${p.name} ist raus!` });
 }
+function knockOutDead(){ for (let i=0;i<4;i++){ const p=S.seats[i]; if (p && p.alive && p.hearts <= 0) knockOut(i); } }
 function checkWin(){
   if (S.phase !== 'play') return true;
   const alive = aliveSeats(S);
   if (alive.length <= 1) {
-    S.phase = 'over'; S.hand = null;
+    S.phase = 'over';
     S.winner = alive.length ? S.seats[alive[0]].name : null;
     log({ sys: S.winner ? `🏆 ${S.winner} gewinnt die Runde!` : '🤝 Keiner hat überlebt – unentschieden!' });
     return true;
   }
   return false;
 }
+function beginTurn(i){ S.turn = i; S.drew = false; S.step = S.hands[i].length < HAND_MAX ? 'draw' : 'act'; }
 // Zug an den nächsten lebenden Spieler geben – dabei greift die Infektion
 function advance(from){
   for (let k=1;k<=4;k++){
@@ -262,9 +290,9 @@ function advance(from){
     if (due > 0) {
       p.hearts -= due; p.infected -= due;
       log({ sys:`🦠 Die Infektion schlägt zu: ${p.name} verliert ${H(due)}.` });
-      if (p.hearts <= 0) { knockOut(p); if (checkWin()) return; continue; }
+      if (p.hearts <= 0) { knockOut(i); if (checkWin()) return; continue; }
     }
-    S.turn = i; return;
+    return beginTurn(i);
   }
   checkWin();
 }
@@ -273,41 +301,71 @@ function startGame(){
   const n = S.seats.filter(Boolean).length;
   if (n < 2) return;
   S.seats = S.seats.map(p => p ? newPlayer(p.name) : null);
-  S.deck = newDeck(); S.hand = null; S.pile = []; S.winner = null; S.round = Date.now();
+  S.hands = [[],[],[],[]];
+  S.deck = newDeck(); S.pile = []; S.winner = null; S.round = Date.now();
   S.phase = 'play';
   const alive = aliveSeats(S);
-  S.turn = alive[Math.floor(Math.random()*alive.length)];
+  beginTurn(alive[Math.floor(Math.random()*alive.length)]);
   log({ sys:`🃏 Neue Runde! ${S.seats[S.turn].name} fängt an.` });
   broadcast();
 }
 
-function doDraw(seat){
-  if (effTurn(S) !== seat || S.hand !== null) return;
+function drawCard(){
   if (S.deck.length === 0) { S.deck = newDeck(); log({ sys:'🔄 Der Stapel wurde neu gemischt.' }); }
-  S.hand = S.deck.pop();
-  log({ sys:`${S.seats[seat].name} hat eine Karte gezogen …` });
+  return S.deck.pop();
+}
+function doDraw(seat){
+  if (effTurn(S) !== seat || S.step !== 'draw') return;
+  S.hands[seat].push(drawCard());
+  S.step = 'act'; S.drew = true;
   broadcast();
 }
-function doPlay(seat){
-  if (effTurn(S) !== seat || S.hand === null) return;
-  const c = S.hand, me = S.seats[seat];
-  const p = CARDS[c].target ? S.seats[vNextAlive(S, seat)] : me;   // im Uhrzeigersinn der Nächste
-  S.hand = null;
+function doPass(seat){
+  if (effTurn(S) !== seat || S.step !== 'act' || !S.drew) return;
+  log({ sys:`✋ ${S.seats[seat].name} hebt die Karten auf und beendet den Zug.` });
+  advance(seat);
+  broadcast();
+}
+// Angriff auf einen Spieler – das Schild blockt ihn
+function hit(p){ if (p.shield) { p.shield = false; return false; } return true; }
+function damage(p){ p.hearts--; p.infected = Math.min(p.infected, Math.max(p.hearts,0)); p.pending = Math.min(p.pending||0, p.infected); }
+
+function doPlay(seat, idx){
+  if (effTurn(S) !== seat || S.step !== 'act') return;
+  const hand = S.hands[seat];
+  if (!Number.isInteger(idx) || idx < 0 || idx >= hand.length) return;
+  const c = hand.splice(idx, 1)[0], me = S.seats[seat];
   S.pile.push(c); S.pile = S.pile.slice(-4);
-  let res;
-  if (c === 2) {                     // tot
-    p.hearts--; p.infected = Math.min(p.infected, Math.max(p.hearts,0)); p.pending = Math.min(p.pending||0, p.infected);
-    res = `${p.name} verliert 1 Herz (${H(Math.max(p.hearts,0))} übrig)`;
-  } else if (c === 0) {              // infiziert
-    if (p.infected < p.hearts) { p.infected++; p.pending = (p.pending||0) + 1; res = `${p.name} ist infiziert – ein Herz wird grün 💚`; }
+  let res, target = null;
+  if (c === 2 || c === 0) {                        // tot / infiziert -> nächster Spieler
+    const p = S.seats[vNextAlive(S, seat)]; target = p.name;
+    if (!hit(p)) res = `${p.name} blockt mit dem Schild 🛡️`;
+    else if (c === 2) { damage(p); res = `${p.name} verliert 1 Herz (${H(Math.max(p.hearts,0))} übrig)`; }
+    else if (p.infected < p.hearts) { p.infected++; p.pending = (p.pending||0) + 1; res = `${p.name} ist infiziert – ein Herz wird grün 💚`; }
     else res = `${p.name} ist infiziert – aber alle Herzen sind schon grün`;
-  } else {                           // Frau
-    if (p.infected > 0) { p.infected--; p.pending = Math.min(p.pending||0, p.infected); res = 'wird geheilt – ein grünes Herz wird wieder rot ❤️'; }
-    else if (p.hearts < MAX_HEARTS) { p.hearts++; res = `bekommt 1 Herz zurück (${H(p.hearts)})`; }
+  } else if (c === 1) {                            // Frau
+    if (me.infected > 0) { me.infected--; me.pending = Math.min(me.pending||0, me.infected); res = 'wird geheilt – ein grünes Herz wird wieder rot ❤️'; }
+    else if (me.hearts < MAX_HEARTS) { me.hearts++; res = `bekommt 1 Herz zurück (${H(me.hearts)})`; }
     else res = 'hat schon volle Herzen';
+  } else if (c === 3) {                            // IYAAAH
+    const blocked = [];
+    aliveSeats(S).forEach(i => { const p = S.seats[i]; if (hit(p)) damage(p); else blocked.push(p.name); });
+    res = 'ALLE verlieren 1 Herz!' + (blocked.length ? ` (🛡️ geblockt: ${blocked.join(', ')})` : '');
+  } else if (c === 4) {                            // Das geht nicht -> Schild
+    if (me.shield) res = 'hat schon ein Schild 🛡️';
+    else { me.shield = true; res = 'bekommt ein Schild 🛡️'; }
+  } else {                                         // Ist mir egal -> Hände tauschen
+    const alive = aliveSeats(S);
+    if (alive.length >= 2) {
+      let perm;
+      do { perm = shuffle(alive.slice()); } while (perm.some((x, k) => x === alive[k]));   // keiner behält seine eigenen Karten
+      const old = alive.map(i => S.hands[i]);
+      alive.forEach((i, k) => { S.hands[perm[k]] = old[k]; });
+      res = 'alle Handkarten werden zufällig getauscht 🔀';
+    } else res = 'aber es gibt niemanden zum Tauschen';
   }
-  log({ name:me.name, c, target: p!==me ? p.name : null, res });
-  if (p.hearts <= 0) knockOut(p);
+  log({ name: me.name, c, target, res });
+  knockOutDead();
   if (!checkWin()) advance(seat);
   broadcast();
 }
@@ -420,7 +478,8 @@ function hostHandle(id, msg){
   if (seat < 0) { if (msg.t === 'ping') toGuest(id, { t:'gone' }); return; }
   if (msg.t === 'bye')  return hostDrop(seat);
   if (msg.t === 'draw') doDraw(seat);
-  if (msg.t === 'play') doPlay(seat);
+  if (msg.t === 'play') doPlay(seat, msg.i);
+  if (msg.t === 'pass') doPass(seat);
 }
 function hostTick(){
   const now = Date.now();
@@ -433,7 +492,7 @@ function hostDrop(i){
   delete guests[i];
   const p = S.seats[i];
   const wasTurn = effTurn(S) === i;
-  if (wasTurn && S.hand !== null) { S.deck.push(S.hand); S.hand = null; }
+  S.hands[i] = [];
   log({ sys:`🚪 ${p.name} hat den Raum verlassen.` });
   S.seats[i] = null;
   if (S.phase === 'play' && !checkWin() && wasTurn) advance(i);
@@ -441,12 +500,12 @@ function hostDrop(i){
   broadcast();
 }
 
-// Jeder bekommt nur das zu sehen, was er sehen darf: die gezogene Karte nur der, der dran ist
+// Jeder bekommt nur seine eigenen Karten zu sehen – von den anderen nur die Anzahl
 function viewFor(seat){
-  const t = effTurn(S);
   return {
-    phase:S.phase, seats:S.seats, turn:S.turn, pile:S.pile, log:S.log, winner:S.winner, round:S.round,
-    deckCount:S.deck.length, hasHand:S.hand!==null, hand: (t===seat ? S.hand : null),
+    phase:S.phase, turn:S.turn, step:S.step, drew:S.drew, pile:S.pile, log:S.log, winner:S.winner, round:S.round,
+    seats: S.seats.map((p,i) => p ? { ...p, cards: S.hands[i].length } : null),
+    deckCount:S.deck.length, hand: (S.hands[seat] || []).slice(),
   };
 }
 function broadcast(){
@@ -511,24 +570,25 @@ window.addEventListener('pagehide', () => {
 });
 
 function sanitize(d){
-  const s = { phase:'lobby', seats:[null,null,null,null], turn:0, pile:[], log:[], winner:null, round:0, deckCount:0, hasHand:false, hand:null };
+  const s = { phase:'lobby', seats:[null,null,null,null], turn:0, step:'draw', drew:false, pile:[], log:[], winner:null, round:0, deckCount:0, hand:[] };
   if (!d || typeof d !== 'object') return s;
   if (['lobby','play','over'].includes(d.phase)) s.phase = d.phase;
   if (Array.isArray(d.seats)) s.seats = [0,1,2,3].map(i => {
     const x = d.seats[i]; if (!x || typeof x !== 'object') return null;
     const hearts = intIn(x.hearts, 0, MAX_HEARTS, 0);
-    return { name: cleanName(x.name), hearts, infected: intIn(x.infected, 0, hearts, 0), alive: !!x.alive, waiting: !!x.waiting };
+    return { name: cleanName(x.name), hearts, infected: intIn(x.infected, 0, hearts, 0), shield: !!x.shield, cards: intIn(x.cards, 0, HAND_MAX, 0), alive: !!x.alive, waiting: !!x.waiting };
   });
   s.turn = intIn(d.turn, 0, 3, 0);
+  if (['draw','act'].includes(d.step)) s.step = d.step;
+  s.drew = !!d.drew;
   if (Array.isArray(d.pile)) s.pile = d.pile.filter(isCard).slice(-4);
   if (Array.isArray(d.log)) s.log = d.log.slice(-40).map(e =>
-      e && typeof e.sys==='string' ? { sys:e.sys.slice(0,120) }
-    : e && isCard(e.c) ? { name: cleanName(e.name), c:e.c, target: typeof e.target==='string' ? cleanName(e.target) : null, res: typeof e.res==='string' ? e.res.slice(0,120) : '' } : null).filter(Boolean);
+      e && typeof e.sys==='string' ? { sys:e.sys.slice(0,140) }
+    : e && isCard(e.c) ? { name: cleanName(e.name), c:e.c, target: typeof e.target==='string' ? cleanName(e.target) : null, res: typeof e.res==='string' ? e.res.slice(0,140) : '' } : null).filter(Boolean);
   s.winner = typeof d.winner==='string' ? cleanName(d.winner) : null;
   s.round = typeof d.round==='number' ? d.round : 0;
   s.deckCount = intIn(d.deckCount, 0, 999, 0);
-  s.hasHand = !!d.hasHand;
-  s.hand = isCard(d.hand) ? d.hand : null;
+  if (Array.isArray(d.hand)) s.hand = d.hand.filter(isCard).slice(0, HAND_MAX);
   return s;
 }
 
@@ -540,7 +600,7 @@ function enterGame(){
   try { history.replaceState(null, '', '#' + roomCode); } catch(e) {}
   render();
 }
-function disableAll(){ ['drawBtn','playBtn','startBtn'].forEach(id => $(id).disabled = true); }
+function disableAll(){ ['drawBtn','playBtn','passBtn','startBtn'].forEach(id => $(id).disabled = true); }
 
 function cardEl(c, flipped=true){
   const d = document.createElement('div');
@@ -554,6 +614,9 @@ function cardEl(c, flipped=true){
 function backEl(){ const d = document.createElement('div'); d.className='card'; d.innerHTML='<div class="inner"><div class="face back"></div></div>'; return d; }
 function heartsStr(p){
   if (!p.alive) return p.waiting ? '⏳' : '🖤'.repeat(MAX_HEARTS);
+  return heartsOnly(p) + (p.shield ? '🛡️' : '');
+}
+function heartsOnly(p){
   const red = p.hearts - p.infected;
   return '❤️'.repeat(Math.max(red,0)) + '💚'.repeat(p.infected) + '🖤'.repeat(MAX_HEARTS - p.hearts);
 }
@@ -565,10 +628,12 @@ function vEffTurn(v){
   return -1;
 }
 
+let sel = null, lastHand = [], lastRound = 0;
 function render(){
   if (!V) return;
   const t = vEffTurn(V);
   const players = V.seats.filter(Boolean).length;
+  const myTurn = t >= 0 && t === mySeat;
 
   // Gewinner-Banner
   const ban = $('banner');
@@ -584,20 +649,37 @@ function render(){
     const nm = document.createElement('div'); nm.className='nm'; nm.textContent = p ? p.name + (i===0 ? ' 👑' : '') : 'Platz frei';
     const hs = document.createElement('div'); hs.className='hearts'; hs.textContent = p ? heartsStr(p) : '';
     const st = document.createElement('div'); st.className='cnt';
-    st.textContent = !p ? 'wartet …' : p.waiting ? 'spielt nächste Runde mit' : (V.phase==='play' && !p.alive) ? 'raus – schaut zu' : p.infected ? 'infiziert!' : '';
+    const info = [];
+    if (!p) info.push('wartet …');
+    else if (p.waiting) info.push('spielt nächste Runde mit');
+    else if (V.phase==='play' && !p.alive) info.push('raus – schaut zu');
+    else {
+      if (V.phase==='play') info.push(`🃏 ${p.cards}`);
+      if (p.infected) info.push('infiziert!');
+    }
+    st.textContent = info.join(' · ');
     el.append(nm, hs, st); box.appendChild(el);
   }
 
-  // Hand: Karte offen nur für den, der dran ist – alle anderen sehen die Rückseite
-  const handKey = V.hand!==null ? `open-${V.round}-${V.log.length}-${V.hand}` : V.hasHand ? `back-${V.round}-${V.log.length}` : null;
-  if (handKey !== lastHandKey){
-    const h = $('hand'); h.innerHTML='';
-    if (V.hand !== null) { const el = cardEl(V.hand,false); h.appendChild(el); requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList.add('flipped'))); }
-    else if (V.hasHand) h.appendChild(backEl());
-    else h.innerHTML = '<div class="empty">Noch keine Karte</div>';
-    lastHandKey = handKey;
-  }
-  $('handLbl').textContent = t<0 ? 'Hand' : t===mySeat ? 'Deine Karte (nur du siehst sie)' : `Karte von ${V.seats[t].name} (verdeckt)`;
+  // Eigene Hand
+  const hand = V.hand;
+  if (V.round !== lastRound) { lastHand = []; lastRound = V.round; }
+  if (hand.join() !== lastHand.join()) sel = null;
+  if (sel !== null && sel >= hand.length) sel = null;
+  if (myTurn && V.step === 'act' && hand.length === 1 && sel === null) sel = 0;   // nur eine Karte -> gleich auswählen
+  const isNew = hand.length > lastHand.length && hand.slice(0, lastHand.length).join() === lastHand.join();
+  const h = $('hand'); h.innerHTML = '';
+  hand.forEach((c, i) => {
+    const el = cardEl(c);
+    if (i === sel) el.classList.add('sel');
+    if (isNew && i === hand.length - 1) el.classList.add('new');
+    el.onclick = () => { sel = (sel === i ? null : i); render(); };
+    h.appendChild(el);
+  });
+  for (let i = hand.length; i < HAND_MAX; i++) { const e = document.createElement('div'); e.className = 'empty slotfree'; e.textContent = 'frei'; h.appendChild(e); }
+  lastHand = hand.slice();
+  const me = V.seats[mySeat];
+  $('handLbl').textContent = me && me.alive && V.phase === 'play' ? `Deine Karten (${hand.length}/${HAND_MAX}) – nur du siehst sie · antippen zum Auswählen` : 'Deine Karten';
 
   // Ablage
   const pile = $('pile'); pile.innerHTML='';
@@ -610,48 +692,58 @@ function render(){
   V.log.slice().reverse().forEach(e => {
     const d = document.createElement('div');
     if (e.sys) { d.style.color = 'var(--dim)'; d.textContent = e.sys; }
-    else { const n = document.createElement('span'); n.className='n'; n.textContent = e.name; d.appendChild(n); d.append(e.target ? ` spielt ${CARDS[e.c].emoji} „${CARDS[e.c].text}“ auf ${e.target} → ${e.res}` : ` spielt ${CARDS[e.c].emoji} „${CARDS[e.c].text}“ und ${e.res}`); }
+    else { const n = document.createElement('span'); n.className='n'; n.textContent = e.name; d.appendChild(n); d.append(` spielt ${CARDS[e.c].emoji} „${CARDS[e.c].text}“ → ${e.res}`); }
     log.appendChild(d);
   });
 
   // Status + Knöpfe
   $('deckCount').textContent = V.deckCount;
   const st = $('status'); st.innerHTML = '';
-  const me = V.seats[mySeat];
   if (V.phase === 'lobby') {
     st.textContent = players < 2 ? 'Warte auf Mitspieler … schick ihnen den Code oder Link!'
       : isHost ? `${players} Spieler da – starte das Spiel, wenn alle bereit sind.` : `${players} Spieler da – warte, bis ${V.seats[0] ? V.seats[0].name : 'der Ersteller'} das Spiel startet.`;
   } else if (V.phase === 'over') {
     st.textContent = isHost ? 'Runde vorbei – starte eine neue Runde!' : 'Runde vorbei – warte auf die nächste Runde.';
   } else if (t >= 0) {
-    if (t === mySeat) st.innerHTML = !V.hasHand ? '<b>Du</b> bist dran – zieh eine Karte!' : (V.hand!==null && CARDS[V.hand].target) ? `<b>Du</b> bist dran – deine Karte trifft <b>${esc(V.seats[vNextAlive(V, mySeat)].name)}</b>!` : '<b>Du</b> bist dran – spiel deine Karte aus!';
-    else {
+    if (myTurn) {
+      if (V.step === 'draw') st.innerHTML = '<b>Du</b> bist dran – zieh eine Karte!';
+      else {
+        const nextName = esc(V.seats[vNextAlive(V, mySeat)].name);
+        let txt = V.drew ? '<b>Du</b> bist dran – spiel eine Karte aus oder beende den Zug.' : '<b>Deine Hand ist voll</b> – du musst eine Karte ausspielen!';
+        if (sel !== null && CARDS[hand[sel]].target) txt += ` <br>Die Karte trifft <b>${nextName}</b>.`;
+        if (sel === null) txt += ' <br>Tipp eine Karte an.';
+        st.innerHTML = txt;
+      }
+    } else {
       const b = document.createElement('b'); b.textContent = V.seats[t].name;
-      st.append(b, V.hasHand ? ' hat eine Karte gezogen …' : ' ist dran.');
+      st.append(b, V.step === 'draw' ? ' ist dran.' : ' überlegt …');
       if (me && !me.alive) st.append(me.waiting ? ' (Du spielst ab der nächsten Runde mit.)' : ' (Du bist raus und schaust zu.)');
     }
   }
-  const myTurn = t >= 0 && t === mySeat;
-  $('drawBtn').disabled = !myTurn || V.hasHand;
-  $('playBtn').disabled = !myTurn || !V.hasHand;
+  $('drawBtn').disabled = !(myTurn && V.step === 'draw');
+  $('playBtn').disabled = !(myTurn && V.step === 'act' && sel !== null);
+  $('passBtn').disabled = !(myTurn && V.step === 'act' && V.drew);
+  const inGame = V.phase === 'play';
+  ['drawBtn','playBtn','passBtn'].forEach(id => $(id).classList.toggle('hidden', !inGame && isHost));
   const sb = $('startBtn');
-  sb.classList.toggle('hidden', !isHost || V.phase === 'play');
+  sb.classList.toggle('hidden', !isHost || inGame);
   sb.textContent = V.phase === 'over' ? 'Neue Runde' : 'Spiel starten';
   sb.disabled = players < 2;
 }
 
 // ================= STEUERUNG =================
-function act(type){
+function act(type, i){
   if (!V) return;
-  if (isHost) { type==='draw' ? doDraw(mySeat) : doPlay(mySeat); }
-  else if (mq && !closed) pub(T(joinCode,'up'), { t:type, from:myId });
+  if (isHost) { if (type==='draw') doDraw(mySeat); else if (type==='play') doPlay(mySeat, i); else doPass(mySeat); }
+  else if (mq && !closed) pub(T(joinCode,'up'), { t:type, i, from:myId });
 }
 $('hostBtn').addEventListener('click', () => { if (!$('nameIn').value.trim()) return lobbyError('Bitte gib zuerst deinen Namen ein.'); hostGame(); });
 $('joinBtn').addEventListener('click', () => { if (!$('nameIn').value.trim()) return lobbyError('Bitte gib zuerst deinen Namen ein.'); joinGame(); });
 $('codeIn').addEventListener('keydown', e => { if (e.key==='Enter') $('joinBtn').click(); });
 $('deck').addEventListener('click', () => act('draw'));
 $('drawBtn').addEventListener('click', () => act('draw'));
-$('playBtn').addEventListener('click', () => act('play'));
+$('playBtn').addEventListener('click', () => { if (sel !== null) { const i = sel; sel = null; act('play', i); } });
+$('passBtn').addEventListener('click', () => act('pass'));
 $('startBtn').addEventListener('click', () => { if (isHost) startGame(); });
 $('copyBtn').addEventListener('click', async () => {
   const link = location.href.split('#')[0] + '#' + roomCode;
@@ -661,7 +753,7 @@ $('copyBtn').addEventListener('click', async () => {
 });
 document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || !V) return;
-  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); act(V.hasHand ? 'play' : 'draw'); }
+  if ((e.key === ' ' || e.key === 'Enter') && V.step === 'draw') { e.preventDefault(); act('draw'); }
 });
 window.addEventListener('beforeunload', e => { if (isHost && Object.keys(guests).length) { e.preventDefault(); e.returnValue = ''; } });
 </script>
