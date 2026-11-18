@@ -39,6 +39,7 @@
   body.hasbg .status, body.hasbg .dirinfo, body.hasbg .slot .lbl, body.hasbg .handlbl { text-shadow:0 1px 3px #000, 0 0 8px #000; }
   .front .txt { overflow-wrap:anywhere; }
   .front .txt.long { font-size:14px; }
+  .front .txt.mid { font-size:16px; }
   .card.task .front { background:#eef3ff; }
   .player { background:rgba(0,0,0,.22); border:2px solid transparent; border-radius:12px; padding:10px 6px; text-align:center; transition:.2s; min-height:84px;
             display:flex; flex-direction:column; justify-content:center; gap:4px; }
@@ -120,7 +121,7 @@
   @keyframes fly { from { transform:translateY(-120px) scale(.4) rotate(-20deg); opacity:0; } }
   .bwrap .card { width:var(--cw); height:calc(var(--cw) * 1.43); }
   .bwrap .front { padding:8px; gap:4px; } .bwrap .front .emoji { font-size:30px; } .bwrap .front .txt { font-size:13px; }
-  .bwrap .front .eff { font-size:9.5px; display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden; }
+  .bwrap .front .eff { font-size:9.5px; -webkit-line-clamp:3; max-height:calc(1.3em * 3); }
   .bwrap { padding-bottom:30px; }
   .newbadge { position:absolute; top:-8px; right:-8px; z-index:3; background:#ff4f6d; color:#fff; font-size:10px; font-weight:800; padding:3px 7px; border-radius:10px; transform:rotate(8deg) scale(0); transition:transform .3s .35s; box-shadow:0 2px 6px rgba(0,0,0,.4); }
   .bwrap.open .newbadge { transform:rotate(8deg) scale(1); } .bwrap .rtag { white-space:nowrap; font-size:10.5px; bottom:6px; }
@@ -171,6 +172,8 @@
   #loreEff { font-size:16px; line-height:1.5; margin:8px 4px; }
   .lore-stats { color:var(--gold); font-weight:700; font-size:14px; }
   @media (max-width: 600px) { .stage { height:380px; } .card3d { width:210px; height:300px; } .f3emoji { font-size:64px; } .f3name { font-size:19px; } }
+  .front .eff { line-height:1.3; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:4; max-height:calc(1.3em * 4); overflow:hidden; flex-shrink:0; }
+  .slot.small .front .eff { display:none; }
   .rules { width:min(100%, 680px); color:var(--dim); font-size:13px; margin-top:12px; line-height:1.6; }
   .rules summary { cursor:pointer; color:var(--text); font-weight:600; }
 
@@ -212,7 +215,8 @@
     .front .emoji { font-size:26px; }
     .front .txt { font-size:13px; }
     .front .txt.long { font-size:10.5px; }
-    .front .eff { font-size:9.5px; }
+    .front .txt.mid { font-size:12px; }
+    .front .eff { font-size:9.5px; -webkit-line-clamp:3; max-height:calc(1.3em * 3); }
     .deck .stack div { border-radius:10px; border-width:4px; }
     .empty { font-size:11px; }
     .err { min-height:0; margin:4px 0; font-size:13px; }
@@ -447,7 +451,8 @@ const N = 6;                                         // Plätze im Raum
 const SEATS = [...Array(N).keys()];
 const HAND_MAX = 3;
 const MAX_HEARTS = 3;
-const VERSION = 15;   // bei jeder Regeländerung erhöhen – alte und neue Version können nicht zusammen spielen
+const VERSION = 15;   // Spiel-Protokoll: bei jeder Regeländerung erhöhen – alte und neue Version können nicht zusammen spielen
+const VERSION_LABEL = '15.1';   // angezeigte Version (Bugfixes ändern nur diese Zahl)
 const $ = id => document.getElementById(id);
 
 const shuffle = a => { for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
@@ -462,7 +467,7 @@ let S = null;   // Host: voller Spielstand
 let V = null;   // was dieses Gerät sehen darf
 
 try { $('nameIn').value = localStorage.getItem('dk-name') || ''; } catch(e) {}
-document.querySelectorAll('.ver').forEach(e => e.textContent = VERSION);
+document.querySelectorAll('.ver').forEach(e => e.textContent = VERSION_LABEL);
 const NARROW = !!(window.matchMedia && matchMedia('(max-width: 600px)').matches);
 if (NARROW) document.querySelector('.rules').removeAttribute('open');
 const fromHash = location.hash.replace('#','').toUpperCase();
@@ -1244,7 +1249,7 @@ async function joinGame(){
     hostLast = Date.now();
     if (msg.t === 'closed') return roomClosed('Der Raum wurde geschlossen (der Ersteller ist weg).');
     if (msg.t === 'gone' && roomCode) return roomClosed('Du warst zu lange weg und wurdest aus dem Raum genommen. Lade die Seite neu und tritt nochmal bei.');
-    if (msg.t === 'version') return stop('⚠️ Du und der Raum-Ersteller habt verschiedene Versionen des Spiels. Bitte ALLE die Seite neu laden (Link mit ?v=' + VERSION + ' am Ende öffnen) und einen neuen Raum erstellen.');
+    if (msg.t === 'version') return stop('⚠️ Du und der Raum-Ersteller habt verschiedene Versionen des Spiels. Bitte ALLE die Seite neu laden (Link mit ?v=' + VERSION_LABEL + ' am Ende öffnen) und einen neuen Raum erstellen.');
     if (msg.t === 'full') return stop(`Der Raum ist schon voll (${N} Spieler).`);
     if (msg.t === 'state') {
       clearTimeout(notFound);
@@ -1338,7 +1343,8 @@ function cardEl(c){
   d.innerHTML = `<div class="inner"><div class="face back"></div><div class="face front"><div class="emoji"></div><div class="txt"></div><div class="eff"></div></div></div>`;
   d.querySelector('.emoji').textContent = CARDS[c].emoji;
   d.querySelector('.txt').textContent = ZH() ? CARDS[c].zh : CARDS[c].text;
-  if (!ZH() && CARDS[c].text.split(' ').some(w => w.length > 12)) d.querySelector('.txt').classList.add('long');
+  const maxW = ZH() ? 0 : Math.max(...CARDS[c].text.split(' ').map(w => w.length));
+  if (maxW > 12) d.querySelector('.txt').classList.add('long'); else if (maxW > 8) d.querySelector('.txt').classList.add('mid');
   d.querySelector('.eff').textContent = ZH() ? CARDS[c].zeff : CARDS[c].eff;
   return d;
 }
@@ -1775,7 +1781,7 @@ function showLoreFromPack(c){ closeBooster(); openLore(); showLoreCard(c); }
   $('boosterClose').onclick = closeBooster;
   $('packAgain').onclick = () => showPack(lastPack);
   $('packBack').onclick = openBooster;
-  document.querySelectorAll('.ver').forEach(e => e.textContent = VERSION);
+  document.querySelectorAll('.ver').forEach(e => e.textContent = VERSION_LABEL);
 })();
 </script>
 </body>
