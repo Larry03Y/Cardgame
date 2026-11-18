@@ -96,6 +96,43 @@
   .dirinfo { font-size:12px; color:var(--dim); margin:-6px 0 6px; }
   .card.mystery .front { background:#2d2440; color:#f4f1e8; border-color:#6c5a99; }
   .card.mystery .front .eff { color:#cbbfe8; }
+  .lorebtn2 { margin-top:14px; padding:10px 18px; font-size:14px; }
+  .lore { position:fixed; inset:0; z-index:50; background:radial-gradient(ellipse at center, #1f3f5f 0%, #0d1b2a 80%); overflow:auto; padding:14px; }
+  .lore-head { display:flex; justify-content:space-between; align-items:center; max-width:900px; margin:0 auto 12px; font-size:20px; }
+  .lore-head button { padding:8px 14px; }
+  .lore-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(110px, 1fr)); gap:10px; max-width:900px; margin:0 auto 30px; }
+  .lore-item { display:flex; flex-direction:column; align-items:center; gap:6px; padding:14px 6px; border-radius:12px; background:#f4f1e8; color:#222; border:4px solid #fff; font-weight:700; font-size:13px; line-height:1.15; min-height:110px; justify-content:center; }
+  .lore-item .li-emoji { font-size:34px; }
+  .lore-item.atk { border-color:#e05252; } .lore-item.heal { border-color:#4caf6a; } .lore-item.def { border-color:#4a90d9; } .lore-item.evil { border-color:#222; } .lore-item.chaos { border-color:#a55eea; }
+  .lore-detail { max-width:520px; margin:0 auto; text-align:center; padding-bottom:30px; }
+  .lore-detail > button { float:left; padding:8px 14px; font-size:14px; }
+  .stage { clear:both; height:430px; perspective:1100px; display:flex; align-items:center; justify-content:center; touch-action:none; cursor:grab; user-select:none; }
+  .stage:active { cursor:grabbing; }
+  .card3d { width:240px; height:343px; position:relative; transform-style:preserve-3d; }
+  .f3, .edge3 { position:absolute; inset:0; border-radius:18px; }
+  .edge3 { background:#d9d3c4; }
+  .f3 { backface-visibility:hidden; -webkit-backface-visibility:hidden; box-shadow:0 18px 40px rgba(0,0,0,.45); }
+  .front3 { transform:translateZ(2.2px); }
+  .back3 { transform:rotateY(180deg) translateZ(2.2px); background:repeating-linear-gradient(45deg,#7a1f2b 0 12px,#8e2734 12px 24px); border:8px solid #f4f1e8; display:flex; align-items:center; justify-content:center; }
+  .b3in { font-size:90px; font-weight:800; color:rgba(244,241,232,.9); }
+  .f3in { position:absolute; inset:0; border-radius:18px; background:#f4f1e8; color:#222; border:8px solid #fff; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:18px; overflow:hidden; }
+  .f3in.atk { border-color:#e05252; } .f3in.heal { border-color:#4caf6a; } .f3in.def { border-color:#4a90d9; } .f3in.evil { border-color:#222; } .f3in.chaos { border-color:#a55eea; }
+  .f3kind { position:absolute; top:10px; left:12px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#777; }
+  .f3no { position:absolute; bottom:8px; right:12px; font-size:11px; color:#999; font-weight:700; }
+  .f3emoji { font-size:76px; filter:drop-shadow(0 6px 6px rgba(0,0,0,.2)); }
+  .f3name { font-weight:800; font-size:22px; line-height:1.1; text-align:center; overflow-wrap:anywhere; }
+  .f3eff { font-size:13px; color:#555; text-align:center; line-height:1.3; }
+  .shine { position:absolute; inset:-40%; background:linear-gradient(115deg, transparent 40%, rgba(255,255,255,.55) 50%, transparent 60%); transform:translateX(var(--shine, 0%)); pointer-events:none; mix-blend-mode:screen; }
+  .card3d .shine { transform:translateX(calc(var(--shine, 0%) - 50%)); }
+  .lore-hint { color:var(--dim); font-size:12px; margin:-8px 0 10px; }
+  .lore-nav { display:flex; align-items:center; justify-content:center; gap:12px; }
+  .lore-nav h2 { margin:0; font-size:22px; }
+  .lore-nav button { padding:6px 14px; font-size:20px; }
+  .lore-kind { display:inline-block; margin:10px 0 4px; padding:3px 12px; border-radius:20px; font-size:12px; font-weight:700; color:#fff; }
+  .lore-kind.atk { background:#e05252; } .lore-kind.heal { background:#4caf6a; } .lore-kind.def { background:#4a90d9; } .lore-kind.evil { background:#333; } .lore-kind.chaos { background:#a55eea; }
+  #loreEff { font-size:16px; line-height:1.5; margin:8px 4px; }
+  .lore-stats { color:var(--gold); font-weight:700; font-size:14px; }
+  @media (max-width: 600px) { .stage { height:380px; } .card3d { width:210px; height:300px; } .f3emoji { font-size:64px; } .f3name { font-size:19px; } }
   .rules { width:min(100%, 680px); color:var(--dim); font-size:13px; margin-top:12px; line-height:1.6; }
   .rules summary { cursor:pointer; color:var(--text); font-weight:600; }
 
@@ -155,6 +192,21 @@
 </head>
 <body>
   <div id="bgimg" class="hidden"></div>
+  <div id="lore" class="lore hidden">
+    <div class="lore-head"><b>📖 Karten-Lore</b><button id="loreClose" class="sec">✕</button></div>
+    <div id="loreGrid" class="lore-grid"></div>
+    <div id="loreDetail" class="lore-detail hidden">
+      <button id="loreBack" class="sec">← Alle Karten</button>
+      <div class="stage" id="stage">
+        <div class="card3d" id="card3d"><div class="f3 front3" id="front3"></div><div class="f3 back3"><div class="b3in">?</div></div></div>
+      </div>
+      <div class="lore-hint">👆 Karte ziehen zum Drehen</div>
+      <div class="lore-nav"><button id="lorePrev" class="sec">‹</button><h2 id="loreName"></h2><button id="loreNext" class="sec">›</button></div>
+      <div class="lore-kind" id="loreKind"></div>
+      <p id="loreEff"></p>
+      <div id="loreStats" class="lore-stats"></div>
+    </div>
+  </div>
   <h1>🃏 Das Kartenspiel</h1>
   <div class="sub">2–6 Spieler · jeder auf seinem eigenen Gerät · ohne Anmeldung · mit Bots</div>
 
@@ -176,6 +228,7 @@
       </div>
     </div>
     <div class="err" id="lobbyErr"></div>
+    <button id="loreBtn" class="sec">📖 Karten-Lore – alle Karten ansehen</button>
   </div>
 
   <!-- SPIEL -->
@@ -212,6 +265,7 @@
       <button id="startBtn" class="hidden">Spiel starten</button>
     </div>
     <div class="log" id="log"></div>
+    <button id="loreBtn2" class="sec lorebtn2">📖 Karten-Lore</button>
     <details class="rules" open>
       <summary>Regeln</summary>
       Bis zu <b>6 Spieler</b>. Der Raum-Ersteller kann vor dem Start <b>🤖 Bots</b> hinzufügen (✕ entfernt sie wieder).<br>
@@ -250,6 +304,9 @@
       📝 <b>Herr Barthel</b> – füllt die Hände aller Spieler mit 📄 Prüfungsaufgaben auf (die machen nichts). Mit 20 % Chance bekommt einer stattdessen die 🔑 Lösung: Wer sie spielt, wird alle Prüfungsaufgaben los und bekommt „Ich hasse meine Frau“.<br>
       🤓 <b>Ich bin eh Smarter</b> – die Chancen aller Karten werden zufällig neu verteilt und der Stapel neu gemischt. Das gilt, bis jemand gewonnen hat.<br>
       🍺 <b>Bier</b> – du bekommst 1 ❤️. Ab dem 4. Bier in derselben Runde verlierst du stattdessen bei jedem weiteren Bier 1 ❤️. Die Biere sieht man am Spielerfeld.<br>
+      🧡 <b>Ginger please</b> – deine Herzen werden orange (ändert nichts). Außerdem bleibt bei <b>allen</b> Spielern (auch dir) die nächste gezogene Karte geheim ❓, wie bei Furry Baddie.<br>
+      🤡 <b>Clownchan</b> – heiße Kartoffel! Bei jedem Zugwechsel hat jeder, der Clownchan auf der Hand hat, eine 5-%-Chance (1 von 20), sofort rauszufliegen. Clownchan verschwindet dann mit ihm. Spielst du ihn aus, bekommt ihn der nächste Spieler. Hat der schon 3 Karten, ersetzt Clownchan eine davon. Alle sehen am Spielerfeld 🤡, wer ihn gerade hat.<br>
+      🧃 <b>Macjucie</b> – der nächste Spieler bekommt zufällig einen dieser Effekte: 💀 (−1 ❤️), 💍 (Heilung), 🛡️ (Schild) oder 🦠 (Infektion).<br>
       🔗 <b>Goonnectet</b> – du wählst einen Spieler. Bis zu deinem nächsten Zug bekommt ihr beide jeden Schaden und jede Heilung ab, die einer von euch bekommt.<br>
       Angriffe sind 💀, 🦠, 😱, 👨‍🏫, 😴, 🦗🦗🦗, 🐻, 🦝 und 🪑. Die Reihenfolge: zuerst Meowskulls 😼, dann Schild 🛡️.<br><br>
       Ohne Herzen bist du raus und schaust bis zum Ende der Runde zu. <b>Wer als Letztes noch Herzen hat, gewinnt.</b>
@@ -293,12 +350,15 @@ const CARDS = [
   { emoji:"🔑", text:"Lösung",               eff:"Du bekommst „Ich hasse meine Frau“, alle Prüfungsaufgaben verschwinden", zh:"答案", zeff:"你得到「我讨厌我老婆」，考试题消失" },
   { emoji:"🤓", text:"Ich bin eh Smarter",   eff:"Alle Karten-Chancen werden zufällig neu verteilt – bis einer gewinnt", zh:"反正我更聪明", zeff:"所有牌的概率随机改变，直到有人获胜" },
   { emoji:"🍺", text:"Bier",                 eff:"+1 ❤️ für dich. Ab dem 4. Bier pro Runde: −1 ❤️",           zh:"啤酒",         zeff:"你+1❤️。每轮第4杯起：−1❤️" },
+  { emoji:"🧡", text:"Ginger please",        eff:"Deine Herzen werden orange. Die nächste Karte von ALLEN bleibt geheim ❓", zh:"姜请", zeff:"你的心变橙色。所有人的下一张牌是秘密❓" },
+  { emoji:"🤡", text:"Clownchan",            eff:"Heiße Kartoffel! Jeder Zug: 5 % tot. Legen = der Nächste kriegt ihn", zh:"小丑酱", zeff:"烫手山芋！每回合5%死亡。出牌=交给下一位" },
+  { emoji:"🧃", text:"Macjucie",             eff:"Nächster Spieler bekommt zufällig 💀, 💍, 🛡️ oder 🦠",       zh:"麦克果汁",     zeff:"下一位玩家随机得到💀、💍、🛡️或🦠" },
 ];
 // Anzahl je Karte im Stapel (gleiche Reihenfolge wie oben). 0 = liegt nicht im Stapel.
-const BASE_MIX = [6, 6, 8, 3, 5, 3, 3, 4, 3, 2, 3, 0, 3,  2, 2, 3, 7, 3, 3,  2, 3, 2, 3, 3, 3, 3, 2, 2, 3, 2, 0, 0,  2, 3];
+const BASE_MIX = [6, 6, 8, 3, 5, 3, 3, 4, 3, 2, 3, 0, 3,  2, 2, 3, 7, 3, 3,  2, 3, 2, 3, 3, 3, 3, 2, 2, 3, 2, 0, 0,  2, 3,  2, 2, 3];
 const DECK_MIX = BASE_MIX.map(n => n * 2);           // alles doppelt
 const SCHOKO = 11, SCHOKO_CHANCE = 0.0001, GRILL = 16, LEON = 10, FREDDY = 17;
-const SMARTER = 32, BEER = 33;
+const SMARTER = 32, BEER = 33, GINGER = 34, CLOWN = 35, MACJ = 36, CLOWN_CHANCE = 0.05;
 const MODDED = 19, PASCAL = 20, KEVIN = 21, DONER = 22, WANU = 23, CHAIR = 24, TORKE = 25, SPECK = 26, LEUTRIM = 27, RCD = 28, BARTHEL = 29, TASK = 30, SOLUTION = 31;
 const BG_COUNT = 12;                                 // Hintergrundbilder img/bg0.jpg … bg11.jpg
 // Handkarten als Zahl: Karte + 100 (geheim) + 1000·(Tarnkarte+1)
@@ -313,7 +373,7 @@ const N = 6;                                         // Plätze im Raum
 const SEATS = [...Array(N).keys()];
 const HAND_MAX = 3;
 const MAX_HEARTS = 3;
-const VERSION = 13;   // bei jeder Regeländerung erhöhen – alte und neue Version können nicht zusammen spielen
+const VERSION = 14;   // bei jeder Regeländerung erhöhen – alte und neue Version können nicht zusammen spielen
 const $ = id => document.getElementById(id);
 
 const shuffle = a => { for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
@@ -343,7 +403,7 @@ function lobbyError(msg){ $('lobbyErr').textContent = msg; $('hostBtn').disabled
 
 // ================= HOST: Spiellogik =================
 const newPlayer = (name, waiting=false, bot=false) => ({ name, bot, hearts: waiting ? 0 : MAX_HEARTS, infected:0, pending:0, shield:false, reflect:false,
-  skip:false, fur:false, trap:false, blue:false, beer:0, alive: !waiting, waiting });
+  skip:false, fur:false, trap:false, color:null, beer:0, alive: !waiting, waiting });
 
 function freshState(){
   return { phase:'lobby', seats:Array(N).fill(null), hands:SEATS.map(() => []), deck:newDeck(), turn:0, turnNo:0, dir:1, step:'draw', drew:false,
@@ -463,7 +523,22 @@ const infect = t => { if (t.infected < t.hearts) { t.infected++; t.pending = (t.
 const skipT = t => { t.skip = true; return `${t.name} muss die nächste Runde aussetzen 😴`; };
 
 // Zug an den nächsten lebenden Spieler (in Spielrichtung) geben – dabei greifen Infektion und Aussetzen
+function clownRoll(){
+  for (const i of aliveSeats(S)) {
+    const n = S.hands[i].filter(x => cardOf(x) === CLOWN).length;
+    for (let k = 0; k < n; k++) {
+      if (Math.random() < CLOWN_CHANCE) {
+        S.hands[i] = S.hands[i].filter(x => cardOf(x) !== CLOWN);   // der Clown verschwindet mit ihm
+        log({ sys:`🤡 Clownchan schlägt zu! ${S.seats[i].name} hatte ihn auf der Hand und ist raus.` });
+        knockOut(i);
+        break;
+      }
+    }
+  }
+}
 function advance(from){
+  clownRoll();
+  if (checkWin()) return;
   for (let k=1;k<=N;k++){
     const i = ((from + k*S.dir) % N + N) % N, p = S.seats[i];
     if (!p || !p.alive) continue;
@@ -604,7 +679,7 @@ function effect(seat, c, tgt){
       return { res:'👾 Is this game modded?! Der Hintergrund hat sich verändert …' };
     }
     case PASCAL: {                                 // 🎭 zufälliger Effekt einer anderen Karte
-      const r = pick(PASCAL_LOOKS);
+      const r = pick(PASCAL_LOOKS.filter(k => k !== CLOWN));
       const inner = effect(seat, r, CARDS[r].choose ? pickTarget(r, seat) : -1);
       return { ...inner, res:`🎭 Pascal! Zufallseffekt ${CARDS[r].emoji} „${CARDS[r].text}“ → ${inner.res}` };
     }
@@ -627,7 +702,7 @@ function effect(seat, c, tgt){
     }
     case CHAIR: return { target:chosen.name, res: attack(me, chosen, t => { hurt(t, 1); t.skip = true; return `${t.name} verliert 1 Herz und muss aussetzen 🪑💥 (${H(Math.max(t.hearts,0))} übrig)`; }) };
     case TORKE: { let n = 0; for (let k=0;k<2;k++) if (giveDrawn(seat)) n++; return { res: n ? `zieht ${n === 1 ? 'eine Karte' : 'zwei Karten'} 🎴` : 'hat keinen Platz für neue Karten' }; }
-    case SPECK: { me.blue = true; return { res:'alle Herzen werden blau 💙 (es ändert sich nichts)' }; }
+    case SPECK: { me.color = 'blue'; return { res:'alle Herzen werden blau 💙 (es ändert sich nichts)' }; }
     case LEUTRIM: {
       S.leutrim.push({ by: seat, at: S.turnNo + 1 + Math.floor(Math.random()*20) });
       return { res:'👻 … und verschwindet. Wann taucht er wieder auf?' };
@@ -653,6 +728,27 @@ function effect(seat, c, tgt){
       S.deck = newDeck(S.mix);
       const top = S.mix.map((n, k) => [n, k]).sort((a, b) => b[0] - a[0]).slice(0, 3).map(([, k]) => CARDS[k].emoji).join(' ');
       return { res:`🤓 alle Karten-Chancen sind jetzt durcheinander (Stapel neu gemischt) – am häufigsten jetzt: ${top}` };
+    }
+    case GINGER: {                                 // 🧡 orange Herzen + Furry-Effekt für alle
+      me.color = 'orange';
+      aliveSeats(S).forEach(i => { S.seats[i].fur = true; });
+      return { res:'die Herzen werden orange 🧡 – und die nächste Karte von ALLEN bleibt geheim ❓' };
+    }
+    case CLOWN: {                                  // 🤡 heiße Kartoffel weitergeben
+      const ni = nextAliveSeat(S, seat), p = S.seats[ni], h = S.hands[ni];
+      if (h.length < HAND_MAX) { h.push(CLOWN); return { target:p.name, res:`gibt Clownchan 🤡 an ${p.name} weiter!` }; }
+      const k = Math.floor(Math.random()*h.length), old = cardOf(h[k]);
+      h[k] = CLOWN; if (old !== TASK && old !== SOLUTION && old !== CLOWN) S.deck.unshift(old);
+      return { target:p.name, res:`gibt Clownchan 🤡 an ${p.name} weiter – ${p.name}s Hand war voll, eine Karte fliegt dafür raus!` };
+    }
+    case MACJ: {                                   // 🧃 zufälliger Effekt für den Nächsten
+      const p = S.seats[nextAliveSeat(S, seat)];
+      const r = pick(['dead', 'wife', 'shield', 'infect']);
+      if (r === 'dead')   return { target:p.name, res:'🧃 → 💀 ' + attack(me, p, dmg(1)) };
+      if (r === 'infect') return { target:p.name, res:'🧃 → 🦠 ' + attack(me, p, infect) };
+      if (r === 'wife')   { const h = heal(p); return { target:p.name, res:`🧃 → 💍 ${p.name} ${h === 'heal' ? 'wird geheilt ❤️' : h === 'plus' ? `bekommt 1 Herz (${H(p.hearts)})` : 'hat schon volle Herzen'}` }; }
+      if (p.shield) return { target:p.name, res:`🧃 → 🛡️ ${p.name} hat schon ein Schild` };
+      p.shield = true; return { target:p.name, res:`🧃 → 🛡️ ${p.name} bekommt ein Schild` };
     }
     case BEER: {                                   // 🍺 bis 3 Bier heilt, danach tut es weh
       me.beer = (me.beer || 0) + 1;
@@ -708,7 +804,7 @@ function doPlay(seat, idx, tgt, all3){
     if (l.length && !l.includes(tgt)) return;
   }
   hand.splice(idx, 1);
-  if (c !== LEUTRIM) { S.pile.push(c); S.pile = S.pile.slice(-4); }   // Leutrim verschwindet einfach
+  if (c !== LEUTRIM && c !== CLOWN) { S.pile.push(c); S.pile = S.pile.slice(-4); }   // Leutrim verschwindet, Clownchan wandert weiter
   const d = disgOf(x);
   const entry = log({ name: me.name, c, hid: isHidden(x), dis: (!isHidden(x) && d !== null) ? d : undefined, res:'…' });
   if (freddyCheck(seat, entry) || checkWin()) { if (S.phase === 'over' && entry.res === '…') entry.res = 'zu spät – das Spiel ist schon vorbei 🐻'; return finishPlay(seat); }
@@ -764,6 +860,8 @@ function botDecide(seat){
   const score = c => {
     if (c === -1) return 1;
     if ([1, 9, 22, SOLUTION].includes(c)) return hurtMe ? 8 : 0;
+    if (c === CLOWN) return 9;
+    if (c === MACJ) return 3;
     if (c === BEER) return (me.beer || 0) >= 3 ? (me.hearts > 1 ? -2 : -20) : (hurtMe ? 8 : 0);
     if ([0, 2, 7, 24, 17, 8].includes(c)) return 5;
     if (c === WANU) return others.some(i => S.hands[i].length) ? 4 : -1;
@@ -937,7 +1035,8 @@ function viewFor(seat){
       if (!p) return null;
       const { trap, pending, ...pub } = p;
       const pascal = i === seat ? 0 : S.hands[i].filter(x => cardOf(x) === PASCAL && !isHidden(x)).length;
-      return { ...pub, cards: S.hands[i].length, pascal };
+      const clown = S.hands[i].some(x => cardOf(x) === CLOWN && !isHidden(x));
+      return { ...pub, cards: S.hands[i].length, pascal, clown };
     }),
     deckCount:S.deck.length, hand: (S.hands[seat] || []).map(shownTo),   // geheime Karten (-1) kennt nicht mal der Besitzer
   };
@@ -1012,7 +1111,7 @@ function sanitize(d){
     const x = d.seats[i]; if (!x || typeof x !== 'object') return null;
     const hearts = intIn(x.hearts, 0, MAX_HEARTS, 0);
     return { name: cleanName(x.name), hearts, infected: intIn(x.infected, 0, hearts, 0), shield: !!x.shield, reflect: !!x.reflect, skip: !!x.skip, fur: !!x.fur,
-             blue: !!x.blue, bot: !!x.bot, beer: intIn(x.beer, 0, 99, 0), pascal: intIn(x.pascal, 0, HAND_MAX, 0), cards: intIn(x.cards, 0, HAND_MAX, 0), alive: !!x.alive, waiting: !!x.waiting };
+             color: ['blue','orange'].includes(x.color) ? x.color : null, clown: !!x.clown, bot: !!x.bot, beer: intIn(x.beer, 0, 99, 0), pascal: intIn(x.pascal, 0, HAND_MAX, 0), cards: intIn(x.cards, 0, HAND_MAX, 0), alive: !!x.alive, waiting: !!x.waiting };
   });
   s.turn = intIn(d.turn, 0, N-1, 0);
   s.dir = d.dir === -1 ? -1 : 1;
@@ -1068,7 +1167,7 @@ function cardEl(c){
 function heartsStr(p){
   if (!p.alive) return p.waiting ? '⏳' : '🖤'.repeat(MAX_HEARTS);
   const red = p.hearts - p.infected;
-  return (p.blue ? '💙' : '❤️').repeat(Math.max(red,0)) + '💚'.repeat(p.infected) + '🖤'.repeat(MAX_HEARTS - p.hearts)
+  return (p.color === 'blue' ? '💙' : p.color === 'orange' ? '🧡' : '❤️').repeat(Math.max(red,0)) + '💚'.repeat(p.infected) + '🖤'.repeat(MAX_HEARTS - p.hearts)
        + (p.shield ? '🛡️' : '') + (p.reflect ? '😼' : '');
 }
 function vEffTurn(v){
@@ -1114,6 +1213,7 @@ function render(){
     else {
       if (V.phase==='play') info.push(`🃏 ${p.cards}`);
       if (p.pascal) info.push('🎭'.repeat(p.pascal));
+      if (p.clown) info.push('🤡');
       if (p.infected) info.push(L('infiziert!', '感染了！'));
       if (p.skip) info.push(L('😴 setzt aus', '😴 跳过'));
       if (p.fur) info.push('🦊');
@@ -1269,6 +1369,118 @@ document.addEventListener('keydown', e => {
   if ((e.key === ' ' || e.key === 'Enter') && V.step === 'draw') { e.preventDefault(); act('draw'); }
 });
 window.addEventListener('beforeunload', e => { if (isHost && Object.keys(guests).length) { e.preventDefault(); e.returnValue = ''; } });
+// ================= KARTEN-LORE (Galerie mit drehbarer 3D-Karte) =================
+const LORE = {
+  0:'Trifft den nächsten Spieler: Eins seiner Herzen wird grün 💚. Bei seinem übernächsten Zug ist es weg – außer er heilt sich vorher.',
+  1:'Wirkt auf dich: Ein grünes Herz wird wieder rot. Bist du nicht infiziert, bekommst du 1 ❤️ zurück (höchstens 3).',
+  2:'Der nächste Spieler verliert sofort 1 ❤️. Schild 🛡️ blockt, Meowskulls 😼 wirft es zurück.',
+  3:'ALLE verlieren 1 ❤️ – du auch! Wer ein Schild hat, blockt. Wer Meowskulls hat, bleibt verschont und du verlierst ein Herz extra.',
+  4:'Du bekommst ein Schild 🛡️. Es blockt den nächsten Angriff auf dich und ist dann weg. Mehr als eins geht nicht.',
+  5:'Alle Handkarten werden zufällig getauscht. Jeder bekommt die Karten von jemand anderem.',
+  6:'Alle Spieler legen ihre gesammelten Karten zurück auf den Stapel. Danach wird neu gemischt.',
+  7:'Du wählst einen Spieler – er verliert 1 ❤️.',
+  8:'Du wählst einen Spieler – er muss seine nächste Runde aussetzen 😴.',
+  9:'Heilt ALLE Spieler: Grünes Herz wird rot, sonst +1 ❤️.',
+  10:'Die Spielrichtung dreht sich um. Direkt danach heilt ein 🥙 Dönerspieß sogar um 3 ❤️.',
+  11:'Alle sterben. Niemand gewinnt. Liegt nicht im Stapel – kommt nur mit 0,01 % Chance beim Ziehen.',
+  12:'Die nächste Karte, die der nächste Spieler zieht, bleibt geheim ❓ – sogar für ihn selbst.',
+  13:'Alle Handkarten werden eingesammelt, gemischt und verdeckt ❓ neu verteilt. Jeder behält gleich viele.',
+  14:'Das ganze Spiel ist 3 Runden lang auf Chinesisch 🀄.',
+  15:'Der nächste Angriff auf dich fliegt zurück zu dem, der ihn gespielt hat 😼.',
+  16:'Macht gar nichts … außer du hast 3 davon auf der Hand: Dann spielst du alle auf einmal und der nächste Spieler verliert 3 ❤️. Vorsicht: Ein 🎭 Pascal kann sich als Grillenberger tarnen!',
+  17:'Eine getarnte Falle: Legt der nächste Spieler in seinem Zug eine Karte, verliert er 1 ❤️. Bis dahin sehen die anderen statt Freddy eine zufällige andere Karte.',
+  18:'Du wählst einen Spieler. Bis zu deinem nächsten Zug bekommt ihr beide jeden Schaden und jede Heilung ab, die einer von euch bekommt 🔗.',
+  19:'Is this game modded?! Der Hintergrund ändert sich für alle.',
+  20:'Tarnt sich auf deiner Hand als andere Karte (70 % Grillenberger). Die anderen sehen 🎭 an deinem Spielerfeld – du nicht. Gespielt löst er den Effekt einer zufälligen anderen Karte aus.',
+  21:'Sieht auf deiner Hand aus wie 🥙 Dönerspieß. Gespielt werden ALLE deine Herzen infiziert 💚 – schnell heilen!',
+  22:'Heilt alle um 1 ❤️. Wurde direkt davor 🔄 Leon gespielt, heilt er alle um 3 ❤️.',
+  23:'Du wählst einen Spieler und klaust ihm eine zufällige Karte 🦝.',
+  24:'Du wählst einen Spieler: Er verliert 1 ❤️ UND setzt eine Runde aus 💥.',
+  25:'Du ziehst zwei Karten (höchstens bis 3 auf der Hand).',
+  26:'Alle deine Herzen werden blau 💙. Sonst passiert nichts.',
+  27:'Verschwindet für 1 bis 20 Züge 👻. Taucht er wieder auf, klaut er einem zufälligen Spieler eine Karte für dich. Hat der keine, wird er stattdessen geheilt.',
+  28:'50/50: Entweder bekommen alle 2 ❤️ – oder der RCD explodiert und alle verlieren 2 ❤️ ⚡.',
+  29:'Füllt die Hände aller Spieler mit 📄 Prüfungsaufgaben auf. Mit 20 % Chance bekommt einer stattdessen die 🔑 Lösung.',
+  30:'Hat keinen Effekt. Kommt nur über 📝 Herr Barthel ins Spiel.',
+  31:'Wer sie spielt, wird alle 📄 Prüfungsaufgaben los und bekommt 💍 „Ich hasse meine Frau“. Kommt nur über 📝 Herr Barthel ins Spiel.',
+  32:'Die Chancen aller Karten werden zufällig neu verteilt und der Stapel neu gemischt – bis jemand gewinnt 🤓.',
+  33:'Die ersten 3 Bier pro Runde geben je 1 ❤️. Ab dem 4. Bier verlierst du jedes Mal 1 ❤️ 🥴.',
+  34:'Deine Herzen werden orange 🧡 (ändert nichts). Außerdem bleibt bei ALLEN Spielern die nächste gezogene Karte geheim ❓.',
+  35:'Heiße Kartoffel! Bei jedem Zugwechsel: 5 % Chance, dass der Besitzer sofort rausfliegt (der Clown verschwindet mit ihm). Spielst du ihn aus, bekommt ihn der nächste Spieler – bei voller Hand ersetzt er eine Karte.',
+  36:'Der nächste Spieler bekommt zufällig einen dieser Effekte: 💀 −1 ❤️, 💍 Heilung, 🛡️ Schild oder 🦠 Infektion.',
+};
+const KIND = c => [2,3,7,24,16,17,0].includes(c) ? 'atk' : [1,9,22,33,31].includes(c) ? 'heal' : [4,15].includes(c) ? 'def' : [11,35,21].includes(c) ? 'evil' : 'chaos';
+const KIND_NAME = { atk:'Angriff', heal:'Heilung', def:'Schutz', evil:'Gefährlich', chaos:'Chaos' };
+let loreIdx = 0, rx = -8, ry = -20, vx = 0, vy = 0, dragging = false, lastX = 0, lastY = 0, idle = 0, loreRaf = null;
+
+function cardFace(c){
+  const k = KIND(c);
+  return `<div class="f3in ${k}"><div class="f3kind">${KIND_NAME[k]}</div><div class="f3emoji">${CARDS[c].emoji}</div>`
+       + `<div class="f3name">${esc(CARDS[c].text)}</div><div class="f3eff">${esc(CARDS[c].eff)}</div><div class="f3no">#${String(c+1).padStart(2,'0')}</div><div class="shine"></div></div>`;
+}
+function openLore(){
+  const g = $('loreGrid'); g.innerHTML = '';
+  CARDS.forEach((card, c) => {
+    const b = document.createElement('button'); b.className = 'lore-item ' + KIND(c);
+    b.innerHTML = `<span class="li-emoji">${card.emoji}</span><span class="li-name"></span>`;
+    b.querySelector('.li-name').textContent = card.text;
+    b.onclick = () => showLoreCard(c);
+    g.appendChild(b);
+  });
+  $('lore').classList.remove('hidden'); $('loreDetail').classList.add('hidden'); $('loreGrid').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+function closeLore(){ $('lore').classList.add('hidden'); document.body.style.overflow = ''; cancelAnimationFrame(loreRaf); loreRaf = null; }
+function showLoreCard(c){
+  loreIdx = c;
+  $('loreGrid').classList.add('hidden'); $('loreDetail').classList.remove('hidden');
+  $('front3').innerHTML = cardFace(c);
+  $('loreName').textContent = `${CARDS[c].emoji} ${CARDS[c].text}`;
+  $('loreEff').textContent = LORE[c] || CARDS[c].eff;
+  const total = DECK_MIX.reduce((a, b) => a + b, 0), n = DECK_MIX[c];
+  $('loreStats').textContent = c === SCHOKO ? 'Chance: 0,01 % pro gezogener Karte'
+    : n ? `Im Stapel: ${n} von ${total} Karten · ${(100*n/total).toFixed(1).replace('.', ',')} % pro Zug` : 'Liegt nicht im Stapel';
+  $('loreKind').textContent = KIND_NAME[KIND(c)]; $('loreKind').className = 'lore-kind ' + KIND(c);
+  rx = -8; ry = -200; vx = 0; vy = 0; idle = 0;                        // kleine Einflug-Drehung
+  if (!loreRaf) loreRaf = requestAnimationFrame(spin);
+  $('loreDetail').scrollTop = 0;
+}
+function spin(){
+  if (!dragging) {
+    ry += vy; rx += vx; vy *= 0.95; vx *= 0.92;
+    if (Math.abs(vy) < 0.05 && ++idle > 40) ry += 0.35;              // langsam von selbst drehen
+    rx += (-8 - rx) * 0.03;                                           // zurück zur Grundneigung
+  }
+  rx = Math.max(-60, Math.min(60, rx));
+  $('card3d').style.transform = `rotateX(${rx}deg) rotateY(${ry}deg)`;
+  const a = ((ry % 360) + 360) % 360;
+  $('card3d').style.setProperty('--shine', `${(a / 360) * 200 - 50}%`);
+  loreRaf = requestAnimationFrame(spin);
+}
+(function initLore(){
+  const st = $('stage');
+  st.addEventListener('pointerdown', e => { dragging = true; lastX = e.clientX; lastY = e.clientY; vx = vy = 0; idle = 0; st.setPointerCapture(e.pointerId); });
+  st.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const dx = e.clientX - lastX, dy = e.clientY - lastY; lastX = e.clientX; lastY = e.clientY;
+    ry += dx * 0.6; rx -= dy * 0.4; vy = dx * 0.6; vx = -dy * 0.4;
+  });
+  const up = () => { dragging = false; idle = 0; };
+  st.addEventListener('pointerup', up); st.addEventListener('pointercancel', up);
+  // Kartendicke: ein paar Schichten zwischen Vorder- und Rückseite
+  const c3 = $('card3d');
+  for (let i = -3; i <= 3; i++) { const e = document.createElement('div'); e.className = 'edge3'; e.style.transform = `translateZ(${i * 0.7}px)`; c3.appendChild(e); }
+  $('loreBtn').onclick = openLore; $('loreBtn2').onclick = openLore;
+  $('loreClose').onclick = closeLore;
+  $('loreBack').onclick = () => { $('loreDetail').classList.add('hidden'); $('loreGrid').classList.remove('hidden'); };
+  $('lorePrev').onclick = () => showLoreCard((loreIdx - 1 + CARDS.length) % CARDS.length);
+  $('loreNext').onclick = () => showLoreCard((loreIdx + 1) % CARDS.length);
+  document.addEventListener('keydown', e => {
+    if ($('lore').classList.contains('hidden')) return;
+    if (e.key === 'Escape') closeLore();
+    if (!$('loreDetail').classList.contains('hidden')) { if (e.key === 'ArrowLeft') $('lorePrev').click(); if (e.key === 'ArrowRight') $('loreNext').click(); }
+  }, true);
+})();
 </script>
 </body>
 </html>
