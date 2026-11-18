@@ -174,6 +174,10 @@
   @media (max-width: 600px) { .stage { height:380px; } .card3d { width:210px; height:300px; } .f3emoji { font-size:64px; } .f3name { font-size:19px; } }
   .front .eff { line-height:1.3; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:4; max-height:calc(1.3em * 4); overflow:hidden; flex-shrink:0; }
   .slot.small .front .eff { display:none; }
+  .card.flat { perspective:none; }
+  .card.flat .inner { transform:none !important; transition:none; transform-style:flat; }
+  .card.flat .face.back { display:none; }
+  .card.flat .face.front { transform:none; backface-visibility:visible; -webkit-backface-visibility:visible; }
   .rules { width:min(100%, 680px); color:var(--dim); font-size:13px; margin-top:12px; line-height:1.6; }
   .rules summary { cursor:pointer; color:var(--text); font-weight:600; }
 
@@ -452,7 +456,7 @@ const SEATS = [...Array(N).keys()];
 const HAND_MAX = 3;
 const MAX_HEARTS = 3;
 const VERSION = 15;   // Spiel-Protokoll: bei jeder Regeländerung erhöhen – alte und neue Version können nicht zusammen spielen
-const VERSION_LABEL = '15.1';   // angezeigte Version (Bugfixes ändern nur diese Zahl)
+const VERSION_LABEL = '15.2';   // angezeigte Version (Bugfixes ändern nur diese Zahl)
 const $ = id => document.getElementById(id);
 
 const shuffle = a => { for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
@@ -1334,12 +1338,12 @@ const cname = c => `${CARDS[c].emoji} „${ZH() ? CARDS[c].zh : CARDS[c].text}�
 function cardEl(c){
   const d = document.createElement('div');
   if (c === -1) {                                  // geheime Karte
-    d.className = 'card flipped mystery';
+    d.className = 'card flipped flat mystery';
     d.innerHTML = '<div class="inner"><div class="face back"></div><div class="face front"><div class="emoji">❓</div><div class="txt">???</div><div class="eff"></div></div></div>';
     d.querySelector('.eff').textContent = L('Geheime Karte – erst nach dem Ausspielen siehst du, was es war', '秘密牌');
     return d;
   }
-  d.className = 'card flipped' + (c === TASK ? ' task' : '');
+  d.className = 'card flipped flat' + (c === TASK ? ' task' : '');
   d.innerHTML = `<div class="inner"><div class="face back"></div><div class="face front"><div class="emoji"></div><div class="txt"></div><div class="eff"></div></div></div>`;
   d.querySelector('.emoji').textContent = CARDS[c].emoji;
   d.querySelector('.txt').textContent = ZH() ? CARDS[c].zh : CARDS[c].text;
@@ -1761,13 +1765,13 @@ function tearPack(i){
     cards.forEach((c, k) => {
       const r = RARITY(c), isNew = !coll.has(c);
       const w = document.createElement('div'); w.className = `bwrap r-${r}`; w.style.animationDelay = `${k * 0.12}s`;
-      const el = cardEl(c); el.classList.remove('flipped');
+      const el = cardEl(c); el.classList.remove('flipped', 'flat');
       const tag = document.createElement('div'); tag.className = 'rtag'; tag.textContent = RAR_NAME[r];
       w.append(el, tag);
       if (isNew) { const nb = document.createElement('div'); nb.className = 'newbadge'; nb.textContent = 'NEU!'; w.appendChild(nb); }
       w.onclick = () => {
         if (el.classList.contains('flipped')) return showLoreFromPack(c);
-        el.classList.add('flipped'); w.classList.add('open'); coll.add(c); saveCollection(coll); updateCollection();
+        el.classList.add('flipped'); w.classList.add('open'); setTimeout(() => el.classList.add('flat'), 560); coll.add(c); saveCollection(coll); updateCollection();
         if (++flipped === cards.length) { $('packBtns').classList.remove('hidden'); $('packHint').textContent = 'Tipp auf eine Karte, um sie in der Karten-Lore anzusehen.'; }
       };
       box.appendChild(w);
