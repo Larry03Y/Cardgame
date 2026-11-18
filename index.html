@@ -1,0 +1,1782 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Das Kartenspiel</title>
+<script src="https://unpkg.com/mqtt@5.16.1/dist/mqtt.min.js"></script>
+<style>
+  :root { --felt:#1f5f3f; --felt2:#174a31; --gold:#f2c14e; --text:#f4f1e8; --dim:#b9cbbf; --cw:140px; --cws:110px; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; color:var(--text); font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+         background:radial-gradient(ellipse at center, var(--felt) 0%, var(--felt2) 75%, #0f3322 100%);
+         display:flex; flex-direction:column; align-items:center; padding:16px; }
+  h1 { margin:6px 0 2px; font-size:26px; }
+  .sub { color:var(--dim); font-size:14px; margin-bottom:14px; text-align:center; }
+  .hidden { display:none !important; }
+  button { background:var(--gold); color:#2a2000; border:none; font-weight:800; font-size:16px; padding:12px 24px; border-radius:10px; cursor:pointer; }
+  button:disabled { opacity:.35; cursor:default; }
+  button.sec { background:rgba(0,0,0,.3); color:var(--text); }
+  input.txt { background:rgba(0,0,0,.3); border:2px solid rgba(255,255,255,.2); color:var(--text); font-size:17px; padding:11px 14px; border-radius:10px; outline:none; width:100%; }
+  input.txt:focus { border-color:var(--gold); }
+  .err { color:#ffb3b3; font-size:14px; min-height:20px; margin:8px 0; text-align:center; }
+
+  .lobby { width:min(100%, 380px); display:flex; flex-direction:column; gap:12px; }
+  .box { background:rgba(0,0,0,.22); border-radius:14px; padding:16px; display:flex; flex-direction:column; gap:10px; }
+  .box h3 { margin:0; font-size:15px; color:var(--dim); font-weight:600; }
+  .row { display:flex; gap:8px; }
+  #codeIn { text-transform:uppercase; letter-spacing:4px; font-weight:800; text-align:center; }
+
+  .roombar { display:flex; gap:10px; align-items:center; background:rgba(0,0,0,.25); padding:8px 14px; border-radius:30px; margin-bottom:14px; flex-wrap:wrap; justify-content:center; }
+  .roombar .code { font-size:22px; font-weight:800; letter-spacing:4px; color:var(--gold); }
+  .roombar button { padding:6px 12px; font-size:13px; border-radius:20px; }
+  .players { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px; width:min(100%, 680px); margin-bottom:18px; }
+  .player { position:relative; }
+  .player .kick { position:absolute; top:4px; right:4px; padding:2px 7px; font-size:12px; border-radius:8px; background:rgba(0,0,0,.4); color:var(--text); }
+  #bgimg { position:fixed; inset:0; z-index:-1; background-color:#0b1f15; background-position:center; background-repeat:no-repeat; background-size:contain; }
+  #bgimg::after { content:''; position:absolute; inset:0; background:rgba(0,0,0,.42); }
+  body.hasbg .status, body.hasbg .dirinfo, body.hasbg .slot .lbl, body.hasbg .handlbl { text-shadow:0 1px 3px #000, 0 0 8px #000; }
+  .front .txt { overflow-wrap:anywhere; }
+  .front .txt.long { font-size:14px; }
+  .card.task .front { background:#eef3ff; }
+  .player { background:rgba(0,0,0,.22); border:2px solid transparent; border-radius:12px; padding:10px 6px; text-align:center; transition:.2s; min-height:84px;
+            display:flex; flex-direction:column; justify-content:center; gap:4px; }
+  .player.active { border-color:var(--gold); background:rgba(242,193,78,.15); transform:translateY(-3px); }
+  .player.out { opacity:.45; }
+  .player.winner { border-color:#7CFC9A; background:rgba(124,252,154,.15); }
+  .player .nm { font-weight:700; font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .player.me .nm::after { content:" (du)"; color:var(--gold); font-weight:400; font-size:12px; }
+  .player.free .nm { color:var(--dim); font-weight:400; }
+  .player .hearts { font-size:18px; letter-spacing:1px; min-height:24px; }
+  .player .cnt { color:var(--dim); font-size:12px; }
+
+  .table { display:flex; gap:28px; align-items:center; justify-content:center; flex-wrap:wrap; margin-bottom:16px; }
+  .slot { display:flex; flex-direction:column; align-items:center; gap:8px; }
+  .slot .lbl { font-size:13px; color:var(--dim); text-align:center; }
+  .card { width:var(--cw); height:calc(var(--cw) * 1.43); border-radius:14px; position:relative; perspective:800px; }
+  .card .inner { position:absolute; inset:0; transition:transform .5s; transform-style:preserve-3d; }
+  .card.flipped .inner { transform:rotateY(180deg); }
+  .face { position:absolute; inset:0; border-radius:14px; backface-visibility:hidden; display:flex; align-items:center; justify-content:center; box-shadow:0 6px 16px rgba(0,0,0,.35); }
+  .back { background:repeating-linear-gradient(45deg,#7a1f2b 0 10px,#8e2734 10px 20px); border:6px solid #f4f1e8; }
+  .back::after { content:"?"; font-size:56px; font-weight:800; color:rgba(244,241,232,.85); }
+  .front { transform:rotateY(180deg); background:#f4f1e8; color:#222; padding:14px; text-align:center; flex-direction:column; gap:8px; border:6px solid #fff; }
+  .front .emoji { font-size:44px; }
+  .front .txt { font-weight:800; font-size:18px; line-height:1.2; }
+  .front .eff { font-size:12px; color:#555; line-height:1.3; }
+  .deck { cursor:pointer; }
+  .deck .stack div { position:absolute; inset:0; border-radius:14px; background:#5e1720; border:6px solid #e4e0d4; }
+  .empty { border:2px dashed rgba(255,255,255,.35); border-radius:14px; width:var(--cw); height:calc(var(--cw) * 1.43); display:flex; align-items:center; justify-content:center; color:var(--dim); font-size:13px; text-align:center; padding:10px; }
+  .pile { position:relative; width:var(--cw); height:calc(var(--cw) * 1.43); }
+  .pile .card { position:absolute; inset:0; transform-origin:50% 100%; }
+  .slot .lbl { position:relative; z-index:2; }
+  .status { font-size:18px; margin:4px 0 12px; text-align:center; min-height:26px; }
+  .status b { color:var(--gold); }
+  .banner { font-size:24px; font-weight:800; color:#7CFC9A; text-align:center; margin-bottom:8px; }
+  .btns { display:flex; gap:10px; margin-bottom:18px; flex-wrap:wrap; justify-content:center; }
+  .log { width:min(100%, 680px); background:rgba(0,0,0,.22); border-radius:12px; padding:10px 14px; max-height:200px; overflow:auto; font-size:14px; }
+  .log div { padding:3px 0; border-bottom:1px solid rgba(255,255,255,.07); }
+  .log div:last-child { border:none; }
+  .log .n { color:var(--gold); font-weight:700; }
+  .slot.small .card, .slot.small .empty, .slot.small .pile { width:var(--cws); height:calc(var(--cws) * 1.43); }
+  .handlbl { font-size:13px; color:var(--dim); margin:4px 0 0; text-align:center; }
+  .slot.small .front .eff { display:none; }
+  .slot.small .front .emoji { font-size:30px; }
+  .slot.small .front .txt { font-size:15px; }
+  .handrow { display:flex; gap:12px; justify-content:center; min-height:calc(var(--cw) * 1.43 + 18px); margin-bottom:8px; padding-top:18px; }
+  .handrow .card { cursor:pointer; transition:transform .15s; }
+  .handrow .card.sel { transform:translateY(-12px); }
+  .handrow .card.sel .face { box-shadow:0 0 0 4px var(--gold), 0 10px 20px rgba(0,0,0,.4); }
+  .handrow .card.new { animation:pop .45s ease-out; }
+  @keyframes pop { from { transform:translateY(-40px) scale(.7); opacity:0; } to { transform:none; opacity:1; } }
+  .handrow .empty.slotfree { opacity:.5; }
+  .targets { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:12px; }
+  .targets button { background:#c0392b; color:#fff; padding:12px 18px; }
+  .zhinfo { background:#b3261e; color:#ffe08a; font-weight:700; font-size:13px; padding:5px 12px; border-radius:20px; margin-bottom:8px; text-align:center; }
+  .dirinfo { font-size:12px; color:var(--dim); margin:-6px 0 6px; }
+  .card.mystery .front { background:#2d2440; color:#f4f1e8; border-color:#6c5a99; }
+  .card.mystery .front .eff { color:#cbbfe8; }
+  .menuver { text-align:center; color:var(--dim); font-size:12px; margin-top:4px; }
+  .booster-sub { text-align:center; color:var(--dim); font-size:13px; margin:-4px auto 16px; max-width:600px; }
+  #booster .lore-stats { text-align:center; margin:16px 0 30px; }
+  .packs { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:14px; max-width:760px; margin:0 auto; }
+  .pack { position:relative; border:none; border-radius:16px; color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; overflow:hidden;
+          background:linear-gradient(160deg, var(--c1), var(--c2)); box-shadow:0 10px 24px rgba(0,0,0,.45), inset 0 0 0 3px rgba(255,255,255,.25); text-shadow:0 2px 4px rgba(0,0,0,.5); cursor:pointer; }
+  .pack::before { content:''; position:absolute; inset:0; background:repeating-linear-gradient(135deg, rgba(255,255,255,.08) 0 10px, transparent 10px 20px); }
+  .pack::after { content:''; position:absolute; top:0; left:-60%; width:40%; height:100%; background:linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent); transform:skewX(-20deg); animation:packshine 2.6s infinite; }
+  @keyframes packshine { 0% { left:-60%; } 60%, 100% { left:130%; } }
+  .pack.small { height:200px; }
+  .pack.big { width:200px; height:290px; margin:10px auto 0; }
+  .pk-star { font-size:46px; position:relative; z-index:1; }
+  .pk-name { font-weight:800; font-size:18px; position:relative; z-index:1; text-align:center; padding:0 8px; }
+  .pk-sub { font-size:12px; opacity:.9; position:relative; z-index:1; }
+  .pack.shake { animation:wobble 1.4s infinite; }
+  @keyframes wobble { 0%,70%,100% { transform:rotate(0); } 75% { transform:rotate(-4deg); } 80% { transform:rotate(4deg); } 85% { transform:rotate(-3deg); } 90% { transform:rotate(2deg); } }
+  .pack.tear { animation:tear .55s ease-in forwards; }
+  @keyframes tear { 30% { transform:scale(1.08) rotate(-3deg); } 100% { transform:scale(1.3); opacity:0; filter:brightness(3); } }
+  .pack-open { max-width:760px; margin:0 auto; text-align:center; }
+  .pack-cards { display:flex; flex-wrap:wrap; justify-content:center; gap:12px; --cw:120px; margin-top:10px; }
+  .bwrap { position:relative; cursor:pointer; animation:fly .5s ease-out both; padding-bottom:22px; }
+  @keyframes fly { from { transform:translateY(-120px) scale(.4) rotate(-20deg); opacity:0; } }
+  .bwrap .card { width:var(--cw); height:calc(var(--cw) * 1.43); }
+  .bwrap .front { padding:8px; gap:4px; } .bwrap .front .emoji { font-size:30px; } .bwrap .front .txt { font-size:13px; }
+  .bwrap .front .eff { font-size:9.5px; display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden; }
+  .bwrap { padding-bottom:30px; }
+  .newbadge { position:absolute; top:-8px; right:-8px; z-index:3; background:#ff4f6d; color:#fff; font-size:10px; font-weight:800; padding:3px 7px; border-radius:10px; transform:rotate(8deg) scale(0); transition:transform .3s .35s; box-shadow:0 2px 6px rgba(0,0,0,.4); }
+  .bwrap.open .newbadge { transform:rotate(8deg) scale(1); } .bwrap .rtag { white-space:nowrap; font-size:10.5px; bottom:6px; }
+  .bwrap .rtag { position:absolute; left:0; right:0; bottom:0; font-size:11px; font-weight:800; opacity:0; transition:opacity .3s .3s; }
+  .bwrap.open .rtag { opacity:1; }
+  .bwrap.open.r-rare .face.front { box-shadow:0 0 0 3px #4a90d9, 0 0 22px #4a90d9; }
+  .bwrap.open.r-legendary .face.front { box-shadow:0 0 0 3px #f2c14e, 0 0 30px #f2c14e; }
+  .bwrap.open.r-mythic .face.front { box-shadow:0 0 0 4px #ff4fd8, 0 0 40px #ff4fd8; animation:rainbow 2s linear infinite; }
+  @keyframes rainbow { to { filter:hue-rotate(360deg); } }
+  .r-common .rtag { color:#cfd8cf; } .r-uncommon .rtag { color:#7ee2a0; } .r-rare .rtag { color:#7fb8ff; } .r-legendary .rtag { color:#f2c14e; } .r-mythic .rtag { color:#ff7ae3; }
+  #packHint { margin-top:14px; }
+  .pack-btns { display:flex; gap:10px; justify-content:center; margin-top:16px; }
+  @media (max-width: 600px) { .pack-cards { --cw:96px; gap:8px; } .pack.small { height:170px; } .pk-star { font-size:38px; } }
+  .lorebtn2 { margin-top:14px; padding:10px 18px; font-size:14px; }
+  .lore { position:fixed; inset:0; z-index:50; background:radial-gradient(ellipse at center, #1f3f5f 0%, #0d1b2a 80%); overflow:auto; padding:14px; }
+  .lore-head { display:flex; justify-content:space-between; align-items:center; max-width:900px; margin:0 auto 12px; font-size:20px; }
+  .lore-head button { padding:8px 14px; }
+  .lore-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(110px, 1fr)); gap:10px; max-width:900px; margin:0 auto 30px; }
+  .lore-item { display:flex; flex-direction:column; align-items:center; gap:6px; padding:14px 6px; border-radius:12px; background:#f4f1e8; color:#222; border:4px solid #fff; font-weight:700; font-size:13px; line-height:1.15; min-height:110px; justify-content:center; }
+  .lore-item .li-emoji { font-size:34px; }
+  .lore-item.atk { border-color:#e05252; } .lore-item.heal { border-color:#4caf6a; } .lore-item.def { border-color:#4a90d9; } .lore-item.evil { border-color:#222; } .lore-item.chaos { border-color:#a55eea; }
+  .lore-detail { max-width:520px; margin:0 auto; text-align:center; padding-bottom:30px; }
+  .lore-detail > button { float:left; padding:8px 14px; font-size:14px; }
+  .stage { clear:both; height:430px; perspective:1100px; display:flex; align-items:center; justify-content:center; touch-action:none; cursor:grab; user-select:none; }
+  .stage:active { cursor:grabbing; }
+  .card3d { width:240px; height:343px; position:relative; transform-style:preserve-3d; }
+  .f3, .edge3 { position:absolute; inset:0; border-radius:18px; }
+  .edge3 { background:#d9d3c4; }
+  .f3 { backface-visibility:hidden; -webkit-backface-visibility:hidden; box-shadow:0 18px 40px rgba(0,0,0,.45); }
+  .front3 { transform:translateZ(2.2px); }
+  .back3 { transform:rotateY(180deg) translateZ(2.2px); background:repeating-linear-gradient(45deg,#7a1f2b 0 12px,#8e2734 12px 24px); border:8px solid #f4f1e8; display:flex; align-items:center; justify-content:center; }
+  .b3in { font-size:90px; font-weight:800; color:rgba(244,241,232,.9); }
+  .f3in { position:absolute; inset:0; border-radius:18px; background:#f4f1e8; color:#222; border:8px solid #fff; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:18px; overflow:hidden; }
+  .f3in.atk { border-color:#e05252; } .f3in.heal { border-color:#4caf6a; } .f3in.def { border-color:#4a90d9; } .f3in.evil { border-color:#222; } .f3in.chaos { border-color:#a55eea; }
+  .f3kind { position:absolute; top:10px; left:12px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#777; }
+  .f3no { position:absolute; bottom:8px; right:12px; font-size:11px; color:#999; font-weight:700; }
+  .f3emoji { font-size:76px; filter:drop-shadow(0 6px 6px rgba(0,0,0,.2)); }
+  .f3name { font-weight:800; font-size:22px; line-height:1.1; text-align:center; overflow-wrap:anywhere; }
+  .f3eff { font-size:13px; color:#555; text-align:center; line-height:1.3; }
+  .shine { position:absolute; inset:-40%; background:linear-gradient(115deg, transparent 40%, rgba(255,255,255,.55) 50%, transparent 60%); transform:translateX(var(--shine, 0%)); pointer-events:none; mix-blend-mode:screen; }
+  .card3d .shine { transform:translateX(calc(var(--shine, 0%) - 50%)); }
+  .lore-hint { color:var(--dim); font-size:12px; margin:-8px 0 10px; }
+  .lore-nav { display:flex; align-items:center; justify-content:center; gap:12px; }
+  .lore-nav h2 { margin:0; font-size:22px; }
+  .lore-nav button { padding:6px 14px; font-size:20px; }
+  .lore-kind { display:inline-block; margin:10px 0 4px; padding:3px 12px; border-radius:20px; font-size:12px; font-weight:700; color:#fff; }
+  .lore-kind.atk { background:#e05252; } .lore-kind.heal { background:#4caf6a; } .lore-kind.def { background:#4a90d9; } .lore-kind.evil { background:#333; } .lore-kind.chaos { background:#a55eea; }
+  #loreEff { font-size:16px; line-height:1.5; margin:8px 4px; }
+  .lore-stats { color:var(--gold); font-weight:700; font-size:14px; }
+  @media (max-width: 600px) { .stage { height:380px; } .card3d { width:210px; height:300px; } .f3emoji { font-size:64px; } .f3name { font-size:19px; } }
+  .rules { width:min(100%, 680px); color:var(--dim); font-size:13px; margin-top:12px; line-height:1.6; }
+  .rules summary { cursor:pointer; color:var(--text); font-weight:600; }
+
+  /* ===== Handy-Ansicht ===== */
+  @media (max-width: 600px) {
+    :root { --cw: min(28vw, 116px); --cws: min(21vw, 84px); }
+    .handrow { gap:8px; padding-top:16px; min-height:calc(var(--cw) * 1.43 + 16px); }
+    .slot.small .front .emoji { font-size:22px; }
+    .slot.small .front .txt { font-size:11.5px; }
+    .handlbl { font-size:12px; margin-bottom:2px; }
+    body { padding:10px 10px 0; }
+    h1 { font-size:20px; margin:2px 0 6px; }
+    .sub { display:none; }
+    .roombar { padding:5px 10px; gap:8px; margin-bottom:8px; font-size:13px; }
+    .roombar .code { font-size:17px; letter-spacing:3px; }
+    .roombar button { padding:5px 10px; font-size:12px; }
+    .banner { font-size:20px; margin-bottom:6px; }
+
+    /* bis zu 6 Spieler: 3 Spalten, kompakt */
+    .players { grid-template-columns:repeat(3, minmax(0,1fr)); gap:5px; margin-bottom:8px; }
+    .player { min-height:0; padding:5px 5px; gap:1px; }
+    .player.active { transform:none; }
+    .player .nm { font-size:12.5px; }
+    .player.me .nm::after { font-size:10px; }
+    .player .hearts { font-size:12px; min-height:0; letter-spacing:0; }
+    .player .cnt { font-size:10px; line-height:1.25; }
+    .player .cnt:empty { display:none; }
+    .player .kick { top:2px; right:2px; padding:0 5px; font-size:10px; }
+
+    .status { font-size:15px; margin:2px 0 8px; min-height:20px; }
+    .table { gap:8px; flex-wrap:nowrap; margin-bottom:6px; align-items:flex-start; }
+    .slot { gap:4px; }
+    .slot .lbl { font-size:11px; max-width:var(--cw); line-height:1.2; min-height:27px; display:flex; align-items:flex-end; justify-content:center; }
+    .face { border-radius:10px; }
+    .card, .card .face, .empty { border-radius:10px; }
+    .back { border-width:4px; }
+    .back::after { font-size:34px; }
+    .front { padding:6px; gap:4px; border-width:4px; }
+    .front .emoji { font-size:26px; }
+    .front .txt { font-size:13px; }
+    .front .txt.long { font-size:10.5px; }
+    .front .eff { font-size:9.5px; }
+    .deck .stack div { border-radius:10px; border-width:4px; }
+    .empty { font-size:11px; }
+    .err { min-height:0; margin:4px 0; font-size:13px; }
+
+    /* Knöpfe kleben unten am Bildschirm */
+    .btns { position:sticky; bottom:0; z-index:5; width:calc(100% + 20px); margin:0 -10px 8px; padding:10px 10px calc(10px + env(safe-area-inset-bottom));
+            background:linear-gradient(to top, #133d29 70%, rgba(19,61,41,0)); gap:8px; flex-wrap:nowrap; }
+    .btns button { flex:1; padding:14px 8px; font-size:15px; }
+    .btns button.hidden { display:none; }
+
+    .log { max-height:140px; font-size:13px; padding:8px 10px; }
+    .rules { font-size:12.5px; margin-bottom:16px; }
+  }
+</style>
+</head>
+<body>
+  <div id="bgimg" class="hidden"></div>
+  <div id="booster" class="lore hidden">
+    <div class="lore-head"><b>🎁 Booster-Packs</b><button id="boosterClose" class="sec">✕</button></div>
+    <div class="booster-sub">Nur zum Spaß – die Karten haben keine Auswirkung aufs Spiel. Jedes Pack: 5 zufällige Karten.</div>
+    <div id="packChoice" class="packs"></div>
+    <div id="packOpen" class="pack-open hidden">
+      <div id="packArt" class="pack big"></div>
+      <div id="packCards" class="pack-cards"></div>
+      <div id="packHint" class="lore-hint"></div>
+      <div id="packBtns" class="pack-btns hidden"><button id="packAgain">Noch eins öffnen</button><button id="packBack" class="sec">Anderes Pack</button></div>
+    </div>
+    <div id="collection" class="lore-stats"></div>
+  </div>
+  <div id="lore" class="lore hidden">
+    <div class="lore-head"><b>📖 Karten-Lore</b><button id="loreClose" class="sec">✕</button></div>
+    <div id="loreGrid" class="lore-grid"></div>
+    <div id="loreDetail" class="lore-detail hidden">
+      <button id="loreBack" class="sec">← Alle Karten</button>
+      <div class="stage" id="stage">
+        <div class="card3d" id="card3d"><div class="f3 front3" id="front3"></div><div class="f3 back3"><div class="b3in">?</div></div></div>
+      </div>
+      <div class="lore-hint">👆 Karte ziehen zum Drehen</div>
+      <div class="lore-nav"><button id="lorePrev" class="sec">‹</button><h2 id="loreName"></h2><button id="loreNext" class="sec">›</button></div>
+      <div class="lore-kind" id="loreKind"></div>
+      <p id="loreEff"></p>
+      <div id="loreStats" class="lore-stats"></div>
+    </div>
+  </div>
+  <h1>🃏 Das Kartenspiel</h1>
+  <div class="sub">2–6 Spieler · jeder auf seinem eigenen Gerät · ohne Anmeldung · mit Bots</div>
+
+  <!-- LOBBY -->
+  <div class="lobby" id="lobby">
+    <div class="box">
+      <h3>Dein Name</h3>
+      <input class="txt" id="nameIn" maxlength="14" placeholder="z. B. Ischan">
+    </div>
+    <div class="box">
+      <h3>Neuen Raum erstellen</h3>
+      <button id="hostBtn">Raum erstellen</button>
+    </div>
+    <div class="box">
+      <h3>Einem Raum beitreten</h3>
+      <div class="row">
+        <input class="txt" id="codeIn" maxlength="6" placeholder="CODE">
+        <button id="joinBtn">Beitreten</button>
+      </div>
+    </div>
+    <div class="err" id="lobbyErr"></div>
+    <button id="loreBtn" class="sec">📖 Karten-Lore – alle Karten ansehen</button>
+    <button id="boosterBtn" class="sec">🎁 Booster-Packs öffnen</button>
+    <div class="menuver">Version <span class="ver"></span></div>
+  </div>
+
+  <!-- SPIEL -->
+  <div id="game" class="hidden" style="display:flex; flex-direction:column; align-items:center; width:100%;">
+    <div class="roombar">
+      <span>Raum-Code:</span><span class="code" id="codeOut"></span>
+      <button class="sec" id="copyBtn">Einladungslink kopieren</button>
+    </div>
+    <div class="banner hidden" id="banner"></div>
+    <div class="players" id="players"></div>
+    <div class="zhinfo hidden" id="zhInfo"></div>
+    <div class="dirinfo hidden" id="dirInfo"></div>
+    <div class="status" id="status"></div>
+    <div class="table">
+      <div class="slot small">
+        <div class="lbl"><span id="deckLbl">Stapel</span> (<span id="deckCount">0</span>)</div>
+        <div class="card deck" id="deck"><div class="stack"><div style="transform:translate(4px,4px)"></div><div style="transform:translate(2px,2px)"></div></div>
+          <div class="inner"><div class="face back"></div></div></div>
+      </div>
+      <div class="slot small">
+        <div class="lbl" id="pileLbl">Zuletzt gespielt</div>
+        <div class="pile" id="pile"><div class="empty">Leer</div></div>
+      </div>
+    </div>
+    <div class="lbl handlbl" id="handLbl">Deine Karten</div>
+    <div class="handrow" id="hand"></div>
+    <div class="targets hidden" id="targets"></div>
+    <div class="err" id="gameErr"></div>
+    <div class="btns">
+      <button id="drawBtn">Karte ziehen</button>
+      <button id="playBtn" disabled>Ausspielen</button>
+      <button id="passBtn" class="sec" disabled>Zug beenden</button>
+      <button id="botBtn" class="sec hidden">🤖 Bot hinzufügen</button>
+      <button id="startBtn" class="hidden">Spiel starten</button>
+    </div>
+    <div class="log" id="log"></div>
+    <button id="loreBtn2" class="sec lorebtn2">📖 Karten-Lore</button>
+    <details class="rules" open>
+      <summary>Regeln</summary>
+      Bis zu <b>6 Spieler</b>. Der Raum-Ersteller kann vor dem Start <b>🤖 Bots</b> hinzufügen (✕ entfernt sie wieder).<br>
+      Jeder startet mit <b>3 ❤️</b> und darf bis zu <b>3 Karten</b> auf der Hand haben – nur du siehst deine Karten.<br>
+      <b>Dein Zug:</b> Zieh eine Karte. Dann spielst du <b>eine</b> Karte aus <b>oder</b> beendest den Zug und hebst deine Karten für später auf.
+      Hast du am Anfang deines Zugs schon 3 Karten, ziehst du nicht, sondern <b>musst</b> eine ausspielen.<br><br>
+      „Der nächste Spieler“ ist immer der nächste in Spielrichtung (am Anfang im Uhrzeigersinn).<br>
+      💀 <b>Du bist tot</b> – der nächste Spieler verliert 1 ❤️.<br>
+      🦠 <b>Du bist infiziert</b> – beim nächsten Spieler wird ein Herz grün 💚. Ab der nächsten Runde (bei seinem übernächsten Zug) ist es weg.<br>
+      😱 <b>IYAAAH</b> – <b>alle</b> verlieren 1 ❤️, auch du.<br>
+      😡 <b>Das geht nicht</b> – du bekommst ein Schild 🛡️. Es blockt den nächsten Angriff auf dich (💀, 🦠 oder 😱) und ist dann weg. Mehr als ein Schild geht nicht.<br>
+      💍 <b>Ich hasse meine Frau</b> – für dich: heilt ein grünes Herz, sonst bekommst du 1 ❤️ zurück (max. 3).<br>
+      🤷 <b>Ist mir egal</b> – die Handkarten aller Spieler werden zufällig getauscht. Jeder bekommt die Karten von jemand anderem.<br>
+      🧔 <b>Kosta</b> – alle Spieler (auch du) legen ihre gesammelten Karten zurück auf den Stapel, danach wird neu gemischt.<br>
+      👨‍🏫 <b>Herr Birkicht</b> – du wählst einen Spieler, er verliert 1 ❤️.<br>
+      😴 <b>Janek</b> – du wählst einen Spieler, er muss seine nächste Runde aussetzen.<br>
+      😽 <b>Katze mit großen Lippen</b> – heilt alle Spieler (grünes Herz wird rot, sonst +1 ❤️).<br>
+      🔄 <b>Leon</b> – die Spielrichtung dreht sich um.<br>
+      🦊 <b>Furry Baddie</b> – die nächste Karte, die der nächste Spieler zieht, bleibt geheim ❓. Er weiß erst nach dem Ausspielen, was sie war (braucht die Karte ein Ziel, wird es zufällig bestimmt).<br>
+      🍫 <b>Schokokuss</b> – alle sterben, niemand gewinnt. Die Chance, ihn zu ziehen, liegt bei 0,01 %.<br>
+      🦇 <b>Goth Baddie</b> – alle Handkarten werden eingesammelt, gemischt und verdeckt ❓ neu verteilt (jeder behält seine Anzahl).<br>
+      🀄 <b>Herr Günther</b> – das Spiel ist 3 Runden lang auf Chinesisch.<br>
+      😼 <b>Meowskulls</b> – der nächste Angriff auf dich fliegt zurück zu dem, der ihn gespielt hat. Bei 😱 bleibst du verschont und der Spieler verliert ein Herz extra.<br>
+      🦗 <b>Grillenberger</b> – macht gar nichts … außer du hast 3 davon auf der Hand: dann spielst du alle auf einmal und der nächste Spieler verliert 3 ❤️.<br>
+      🐻 <b>Freddy Fazebear</b> – eine Falle: der nächste Spieler verliert 1 ❤️, wenn er in seinem nächsten Zug eine Karte <b>legt</b>. Beendet er den Zug ohne zu legen, passiert nichts. Bis dahin sehen die anderen statt Freddy eine zufällige andere Karte.<br>
+      👾 <b>Is this game modded?</b> – der Hintergrund ändert sich (für alle).<br>
+      🎭 <b>Pascal</b> – tarnt sich auf deiner Hand als eine andere Karte (meistens 🦗 Grillenberger). Die anderen sehen an deinem Spielerfeld 🎭, dass du einen Pascal hast – du nicht. Gespielt löst er den Effekt einer zufälligen anderen Karte aus.<br>
+      🍕 <b>Kevins Pizzabrötchen</b> – sieht auf deiner Hand aus wie 🥙 Dönerspieß. Gespielt werden alle deine Herzen infiziert 💚 (bei deinem übernächsten Zug sind sie weg, wenn du sie nicht heilst).<br>
+      🥙 <b>So ein großer Dönerspieß</b> – heilt alle um 1 ❤️. Wurde direkt davor 🔄 Leon gespielt, heilt er alle um 3 ❤️.<br>
+      🦝 <b>Wanunanuninuninu</b> – du wählst einen Spieler und klaust ihm eine zufällige Karte.<br>
+      🪑 <b>Exploding chair</b> – du wählst einen Spieler: er verliert 1 ❤️ und setzt eine Runde aus.<br>
+      🎴 <b>Törke</b> – du ziehst zwei Karten (höchstens bis 3 auf der Hand).<br>
+      🥓 <b>Speck</b> – alle deine Herzen werden blau 💙. Sonst passiert nichts.<br>
+      👻 <b>Leutrim</b> – verschwindet für 1 bis 20 Züge. Taucht er wieder auf, klaut er einem zufälligen Spieler eine Karte und gibt sie dir. Hat der keine Karten, wird er stattdessen um 1 ❤️ geheilt.<br>
+      ⚡ <b>RCD</b> – 50/50: entweder bekommen alle 2 ❤️ oder alle verlieren 2 ❤️ (Schild blockt).<br>
+      📝 <b>Herr Barthel</b> – füllt die Hände aller Spieler mit 📄 Prüfungsaufgaben auf (die machen nichts). Mit 20 % Chance bekommt einer stattdessen die 🔑 Lösung: Wer sie spielt, wird alle Prüfungsaufgaben los und bekommt „Ich hasse meine Frau“.<br>
+      🤓 <b>Ich bin eh Smarter</b> – die Chancen aller Karten werden zufällig neu verteilt und der Stapel neu gemischt. Das gilt, bis jemand gewonnen hat.<br>
+      🍺 <b>Bier</b> – du bekommst 1 ❤️. Ab dem 4. Bier in derselben Runde verlierst du stattdessen bei jedem weiteren Bier 1 ❤️. Die Biere sieht man am Spielerfeld.<br>
+      🧡 <b>Ginger please</b> – deine Herzen werden orange (ändert nichts). Außerdem bleibt bei <b>allen</b> Spielern (auch dir) die nächste gezogene Karte geheim ❓, wie bei Furry Baddie.<br>
+      🤡 <b>Clownchan</b> – heiße Kartoffel! Bei jedem Zugwechsel hat jeder, der Clownchan auf der Hand hat, eine 5-%-Chance (1 von 20), sofort rauszufliegen. Clownchan verschwindet dann mit ihm. Spielst du ihn aus, bekommt ihn der nächste Spieler. Hat der schon 3 Karten, ersetzt Clownchan eine davon. Alle sehen am Spielerfeld 🤡, wer ihn gerade hat.<br>
+      🧃 <b>Macjucie</b> – der nächste Spieler bekommt zufällig einen dieser Effekte: 💀 (−1 ❤️), 💍 (Heilung), 🛡️ (Schild) oder 🦠 (Infektion).<br>
+      👨‍💼 <b>Herr Rittner</b> – 20 Runden lang kommen Heilkarten (💍 😽 🥙 🍺) doppelt so oft, aber auch 🚬 Zigaretten-Pausen.<br>
+      🚬 <b>Zigaretten Pause</b> – wird nicht gespielt: Wer sie zieht, verliert sofort 1 ❤️ und sein Zug ist vorbei.<br>
+      📈 <b>Schneeball System</b> – jeder bekommt einen 🥙 Dönerspieß, der aber auch ein 🍕 Kevins Pizzabrötchen sein kann. Mit 50 % wird deine Hand mit 🪙 Bitcoin aufgefüllt.<br>
+      🪙 <b>Bitcoin</b> – kein Effekt. Wurden von allen zusammen 20 gespielt, bekommt jeder 1 ❤️ (Zähler steht oben).<br>
+      🐕 <b>Das ist ein Hund</b> – du wählst: 🔫 Erschieß den Hund (nichts passiert) oder 🤠 Sandro zähmt ihn (80 % infiziert, 20 % geheilt).<br>
+      💣 <b>Miene?</b> – versteckt eine 💥 Mine in den nächsten 30 Karten. Wer sie zieht, verliert 1 ❤️.<br>
+      🎰 <b>Let it ride</b> – 50/50 für 3 Runden: viel öfter gute Karten 🍀 oder Hand voller 📄 Prüfungsaufgaben.<br>
+      🌀 <b>Pussy Pattern</b> – 3 Runden lang kommen 👾 Modded und 🪙 Bitcoin viel öfter und werden beim Ziehen sofort gespielt.<br>
+      📜 <b>Birkichts Pläne</b> – du bekommst einen verdeckten 🗺️ Geheimplan. Gespielt löst er zwei zufällige Effekte anderer Karten aus.<br>
+      🔗 <b>Goonnectet</b> – du wählst einen Spieler. Bis zu deinem nächsten Zug bekommt ihr beide jeden Schaden und jede Heilung ab, die einer von euch bekommt.<br>
+      Angriffe sind 💀, 🦠, 😱, 👨‍🏫, 😴, 🦗🦗🦗, 🐻, 🦝 und 🪑. Die Reihenfolge: zuerst Meowskulls 😼, dann Schild 🛡️.<br><br>
+      Ohne Herzen bist du raus und schaust bis zum Ende der Runde zu. <b>Wer als Letztes noch Herzen hat, gewinnt.</b>
+    </details>
+    <div style="color:var(--dim); font-size:11px; margin:6px 0 14px;">Version <span class="ver"></span></div>
+  </div>
+
+<script>
+const CARDS = [
+  { emoji:"🦠", text:"Du bist infiziert",     eff:"Nächster Spieler: ein Herz wird grün", target:true,          zh:"你被感染了",   zeff:"下一位玩家：一颗心变绿" },
+  { emoji:"💍", text:"Ich hasse meine Frau", eff:"Für dich: heilt Grün oder +1 ❤️",                            zh:"我讨厌我老婆", zeff:"对你：治愈绿心或+1❤️" },
+  { emoji:"💀", text:"Du bist tot",          eff:"Nächster Spieler verliert 1 ❤️", target:true,               zh:"你死了",       zeff:"下一位玩家失去1❤️" },
+  { emoji:"😱", text:"IYAAAH",               eff:"ALLE verlieren 1 ❤️ – auch du!",                             zh:"咿呀啊啊啊",   zeff:"所有人失去1❤️——包括你！" },
+  { emoji:"😡", text:"Das geht nicht",       eff:"Schild 🛡️: blockt den nächsten Angriff",                    zh:"这不行",       zeff:"护盾🛡️：挡住下一次攻击" },
+  { emoji:"🤷", text:"Ist mir egal",         eff:"Alle Handkarten werden zufällig getauscht",                  zh:"我无所谓",     zeff:"所有手牌随机交换" },
+  { emoji:"🧔", text:"Kosta",                eff:"Alle legen ihre Karten zurück auf den Stapel",               zh:"科斯塔",       zeff:"所有人把手牌放回牌堆" },
+  { emoji:"👨‍🏫", text:"Herr Birkicht",       eff:"Du wählst einen Spieler: er verliert 1 ❤️", choose:true,     zh:"比尔基希特先生", zeff:"你选一名玩家：他失去1❤️" },
+  { emoji:"😴", text:"Janek",                eff:"Du wählst einen Spieler: er setzt eine Runde aus", choose:true, zh:"亚内克",    zeff:"你选一名玩家：他跳过一回合" },
+  { emoji:"😽", text:"Katze mit großen Lippen", eff:"Heilt ALLE Spieler",                                     zh:"大嘴唇的猫",   zeff:"治愈所有玩家" },
+  { emoji:"🔄", text:"Leon",                 eff:"Die Spielrichtung dreht sich um",                            zh:"莱昂",         zeff:"游戏方向反转" },
+  { emoji:"🍫", text:"Schokokuss",           eff:"Alle sterben. Niemand gewinnt.",                             zh:"巧克力吻",     zeff:"所有人死亡。没有人获胜。" },
+  { emoji:"🦊", text:"Furry Baddie",         eff:"Die nächste Karte vom nächsten Spieler bleibt geheim ❓",    zh:"毛茸茸坏蛋",   zeff:"下一位玩家的下一张牌是秘密❓" },
+  { emoji:"🦇", text:"Goth Baddie",          eff:"Alle Karten werden verdeckt und zufällig neu verteilt",       zh:"哥特坏蛋",     zeff:"所有手牌被盖住并随机重新分配" },
+  { emoji:"🀄", text:"Herr Günther",         eff:"Das Spiel ist 3 Runden lang auf Chinesisch",                  zh:"君特先生",     zeff:"游戏变成中文三轮" },
+  { emoji:"😼", text:"Meowskulls",           eff:"Der nächste Angriff auf dich fliegt zurück",                  zh:"喵骷髅",       zeff:"下一次攻击会反弹回去" },
+  { emoji:"🦗", text:"Grillenberger",        eff:"Macht nichts … außer du hast 3 davon: 3 ❤️ Schaden!",        zh:"格里伦贝格",   zeff:"没用……除非你有三张：3❤️伤害！" },
+  { emoji:"🐻", text:"Freddy Fazebear",      eff:"Falle: Nächster Spieler verliert 1 ❤️, wenn er eine Karte legt. Getarnt!", zh:"弗雷迪熊", zeff:"陷阱：下一位玩家出牌时失去1❤️" },
+  { emoji:"🔗", text:"Goonnectet",           eff:"Du teilst eine Runde lang Schaden & Heilung mit einem Spieler", choose:true, zh:"连接", zeff:"与一名玩家共享伤害和治疗一轮" },
+  { emoji:"👾", text:"Is this game modded?", eff:"Der Hintergrund ändert sich",                                zh:"这游戏被改了吗？", zeff:"背景图片改变" },
+  { emoji:"🎭", text:"Pascal",               eff:"Tarnt sich auf deiner Hand. Gespielt: zufälliger Effekt einer anderen Karte", zh:"帕斯卡", zeff:"伪装成别的牌。打出：随机效果" },
+  { emoji:"🍕", text:"Kevins Pizzabrötchen", eff:"Alle deine Herzen werden infiziert 💚",                      zh:"凯文的披萨面包", zeff:"你所有的心都被感染💚" },
+  { emoji:"🥙", text:"So ein großer Dönerspieß", eff:"Heilt alle um 1 ❤️ – direkt nach Leon um 3 ❤️",          zh:"好大一串烤肉", zeff:"治愈所有人1❤️（莱昂之后：3❤️）" },
+  { emoji:"🦝", text:"Wanunanuninuninu",     eff:"Du klaust einem Spieler eine Karte", choose:true,              zh:"哇努那努尼努尼努", zeff:"从一名玩家那里偷一张牌" },
+  { emoji:"🪑", text:"Exploding chair",      eff:"Du wählst: er verliert 1 ❤️ und setzt eine Runde aus 💥", choose:true, zh:"爆炸椅", zeff:"你选一名玩家：失去1❤️并跳过一回合" },
+  { emoji:"🎴", text:"Törke",                eff:"Zieh zwei Karten",                                            zh:"特尔克",       zeff:"抽两张牌" },
+  { emoji:"🥓", text:"Speck",                eff:"Alle deine Herzen werden blau 💙 (es ändert sich nichts)",    zh:"培根",         zeff:"你的心变蓝💙（没有效果）" },
+  { emoji:"👻", text:"Leutrim",              eff:"Verschwindet 1–20 Züge, dann klaut er jemandem eine Karte für dich", zh:"洛伊特里姆", zeff:"消失1到20回合，然后替你偷一张牌" },
+  { emoji:"⚡", text:"RCD",                  eff:"50/50: alle +2 ❤️ oder alle −2 ❤️",                          zh:"漏电保护器",   zeff:"50/50：所有人+2❤️或−2❤️" },
+  { emoji:"📝", text:"Herr Barthel",         eff:"Füllt alle Hände mit Prüfungsaufgaben. 20 %: einer bekommt die Lösung", zh:"巴特尔先生", zeff:"用考试题填满所有人的手牌" },
+  { emoji:"📄", text:"Prüfungsaufgabe",      eff:"Hat keinen Effekt",                                           zh:"考试题",       zeff:"没有效果" },
+  { emoji:"🔑", text:"Lösung",               eff:"Du bekommst „Ich hasse meine Frau“, alle Prüfungsaufgaben verschwinden", zh:"答案", zeff:"你得到「我讨厌我老婆」，考试题消失" },
+  { emoji:"🤓", text:"Ich bin eh Smarter",   eff:"Alle Karten-Chancen werden zufällig neu verteilt – bis einer gewinnt", zh:"反正我更聪明", zeff:"所有牌的概率随机改变，直到有人获胜" },
+  { emoji:"🍺", text:"Bier",                 eff:"+1 ❤️ für dich. Ab dem 4. Bier pro Runde: −1 ❤️",           zh:"啤酒",         zeff:"你+1❤️。每轮第4杯起：−1❤️" },
+  { emoji:"🧡", text:"Ginger please",        eff:"Deine Herzen werden orange. Die nächste Karte von ALLEN bleibt geheim ❓", zh:"姜请", zeff:"你的心变橙色。所有人的下一张牌是秘密❓" },
+  { emoji:"🤡", text:"Clownchan",            eff:"Heiße Kartoffel! Jeder Zug: 5 % tot. Legen = der Nächste kriegt ihn", zh:"小丑酱", zeff:"烫手山芋！每回合5%死亡。出牌=交给下一位" },
+  { emoji:"🧃", text:"Macjucie",             eff:"Nächster Spieler bekommt zufällig 💀, 💍, 🛡️ oder 🦠",       zh:"麦克果汁",     zeff:"下一位玩家随机得到💀、💍、🛡️或🦠" },
+  { emoji:"👨‍💼", text:"Herr Rittner",        eff:"20 Runden: Heilkarten doppelt so oft – Zigaretten-Pause auch", zh:"里特纳先生", zeff:"20轮：治疗牌概率翻倍（抽烟休息也是）" },
+  { emoji:"🚬", text:"Zigaretten Pause",     eff:"Beim Ziehen: −1 ❤️ und dein Zug ist vorbei",                 zh:"抽烟休息",     zeff:"抽到时：−1❤️并结束回合" },
+  { emoji:"📈", text:"Schneeball System",    eff:"Jeder bekommt einen Döner (oder ist es Kevins Pizzabrötchen?). Manchmal: Bitcoin für dich", zh:"庞氏骗局", zeff:"每人得到烤肉串（或披萨面包？），有时你得到比特币" },
+  { emoji:"🪙", text:"Bitcoin",              eff:"Kein Effekt … nach 20 Bitcoin von allen: alle +1 ❤️",        zh:"比特币",       zeff:"没有效果……全体累计20个：所有人+1❤️" },
+  { emoji:"🐕", text:"Das ist ein Hund",     eff:"Du wählst: Erschieß den Hund oder Sandro zähmt ihn", options:["🔫 Erschieß den Hund", "🤠 Sandro zähmt ihn"], zh:"这是一只狗", zeff:"选择：射杀狗或让桑德罗驯服它" },
+  { emoji:"💣", text:"Miene?",               eff:"Versteckt eine Mine in den nächsten 30 Karten",              zh:"地雷？",       zeff:"在接下来30张牌里藏一颗地雷" },
+  { emoji:"💥", text:"Mine",                 eff:"Wer sie zieht, verliert 1 ❤️",                               zh:"地雷",         zeff:"抽到的人失去1❤️" },
+  { emoji:"🎰", text:"Let it ride",          eff:"3 Runden: viel öfter gute Karten – oder Hand voller Prüfungsaufgaben", zh:"赌一把", zeff:"3轮：好牌更多，或手牌全是考试题" },
+  { emoji:"🌀", text:"Pussy Pattern",        eff:"3 Runden: Modded & Bitcoin kommen öfter – und werden sofort gespielt", zh:"猫猫图案", zeff:"3轮：改版和比特币更常出现并立即打出" },
+  { emoji:"📜", text:"Birkichts Pläne",      eff:"Du bekommst einen geheimen Plan, den du nicht lesen kannst",  zh:"比尔基希特的计划", zeff:"你得到一张看不懂的秘密计划" },
+  { emoji:"🗺️", text:"Birkichts Geheimplan", eff:"Zwei zufällige Effekte anderer Karten auf einmal",            zh:"秘密计划",     zeff:"两个随机效果同时触发" },
+];
+// Anzahl je Karte im Stapel (gleiche Reihenfolge wie oben). 0 = liegt nicht im Stapel.
+const BASE_MIX = [6, 6, 8, 3, 5, 3, 3, 4, 3, 2, 3, 0, 3,  2, 2, 3, 7, 3, 3,  2, 3, 2, 3, 3, 3, 3, 2, 2, 3, 2, 0, 0,  2, 3,  2, 2, 3,  2, 2, 2, 3, 2, 2, 0, 2, 2, 2, 0];
+const DECK_MIX = BASE_MIX.map(n => n * 2);           // alles doppelt
+const SCHOKO = 11, SCHOKO_CHANCE = 0.0001, GRILL = 16, LEON = 10, FREDDY = 17;
+const SMARTER = 32, BEER = 33, GINGER = 34, CLOWN = 35, MACJ = 36, CLOWN_CHANCE = 0.05;
+const RITTNER = 37, CIG = 38, SNOWBALL = 39, BTC = 40, DOG = 41, MINECARD = 42, MINE = 43, RIDE = 44, PATTERN = 45, PLANS = 46, PLAN = 47;
+const HEAL_CARDS = [1, 9, 22, 33], GOOD_CARDS = [1, 4, 9, 15, 22, 33];
+const MODDED = 19, PASCAL = 20, KEVIN = 21, DONER = 22, WANU = 23, CHAIR = 24, TORKE = 25, SPECK = 26, LEUTRIM = 27, RCD = 28, BARTHEL = 29, TASK = 30, SOLUTION = 31;
+const BG_COUNT = 31;                                 // Hintergrundbilder img/bg0.jpg … bg30.jpg
+// Handkarten als Zahl: Karte + 100 (geheim) + 1000·(Tarnkarte+1)
+const HIDDEN = 100, DIS = 1000;
+const cardOf = x => x % HIDDEN;
+const isHidden = x => (x % DIS) >= HIDDEN;
+const disgOf = x => x >= DIS ? Math.floor(x / DIS) - 1 : null;
+const mk = (c, hid=false, d=null) => c + (hid ? HIDDEN : 0) + (d === null ? 0 : (d + 1) * DIS);
+const shownTo = x => isHidden(x) ? -1 : (disgOf(x) ?? cardOf(x));   // was der Besitzer sieht
+const hideCard = x => isHidden(x) ? x : x + HIDDEN;
+const N = 6;                                         // Plätze im Raum
+const SEATS = [...Array(N).keys()];
+const HAND_MAX = 3;
+const MAX_HEARTS = 3;
+const VERSION = 15;   // bei jeder Regeländerung erhöhen – alte und neue Version können nicht zusammen spielen
+const $ = id => document.getElementById(id);
+
+const shuffle = a => { for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
+const pick = a => a[Math.floor(Math.random()*a.length)];
+const newDeck = (mix = (typeof S !== 'undefined' && S && S.mix) || DECK_MIX) => shuffle(mix.flatMap((n,i) => Array(n).fill(i)));
+const isCard = c => Number.isInteger(c) && c>=0 && c<CARDS.length;
+const cleanName = n => (typeof n==='string' ? n.trim().slice(0,14) : '') || 'Spieler';
+const intIn = (n, lo, hi, d) => Number.isInteger(n) && n>=lo && n<=hi ? n : d;
+
+let isHost = false, mySeat = -1, roomCode = '';
+let S = null;   // Host: voller Spielstand
+let V = null;   // was dieses Gerät sehen darf
+
+try { $('nameIn').value = localStorage.getItem('dk-name') || ''; } catch(e) {}
+document.querySelectorAll('.ver').forEach(e => e.textContent = VERSION);
+const NARROW = !!(window.matchMedia && matchMedia('(max-width: 600px)').matches);
+if (NARROW) document.querySelector('.rules').removeAttribute('open');
+const fromHash = location.hash.replace('#','').toUpperCase();
+if (/^[A-Z0-9]{6}$/.test(fromHash)) $('codeIn').value = fromHash;
+
+function myName(){
+  const n = cleanName($('nameIn').value);
+  try { localStorage.setItem('dk-name', n); } catch(e) {}
+  return n;
+}
+function lobbyError(msg){ $('lobbyErr').textContent = msg; $('hostBtn').disabled = $('joinBtn').disabled = false; }
+
+// ================= HOST: Spiellogik =================
+const newPlayer = (name, waiting=false, bot=false) => ({ name, bot, hearts: waiting ? 0 : MAX_HEARTS, infected:0, pending:0, shield:false, reflect:false,
+  skip:false, fur:false, trap:false, color:null, beer:0, luckUntil:0, taskUntil:0, alive: !waiting, waiting });
+
+function freshState(){
+  return { phase:'lobby', seats:Array(N).fill(null), hands:SEATS.map(() => []), deck:newDeck(), turn:0, turnNo:0, dir:1, step:'draw', drew:false,
+           pile:[], log:[], winner:null, round:Date.now(), zh:0, link:null, freddy:null, fid:0, bg:-1, leutrim:[], lastCard:-1, mix:null, rittnerUntil:0, patternUntil:0, btc:0 };
+}
+function aliveSeats(st){ return SEATS.filter(i => st.seats[i] && st.seats[i].alive); }
+function effTurn(st){
+  if (st.phase !== 'play') return -1;
+  for (let k=0;k<N;k++){ const i=(st.turn+k)%N; const p=st.seats[i]; if (p && p.alive) return i; }
+  return -1;
+}
+function nextAliveSeat(st, from){ const dir = st.dir === -1 ? -1 : 1; for (let k=1;k<=N;k++){ const i=((from+k*dir)%N+N)%N; if (st.seats[i] && st.seats[i].alive) return i; } return from; }
+function log(msg){ S.log.push(msg); S.log = S.log.slice(-40); return msg; }
+const H = n => n === 1 ? '1 Herz' : `${n} Herzen`;
+const seatIdx = p => S.seats.indexOf(p);
+
+function knockOut(i){
+  const p = S.seats[i];
+  Object.assign(p, { alive:false, hearts:0, infected:0, pending:0, shield:false, reflect:false, skip:false, fur:false, trap:false });
+  S.hands[i] = [];
+  if (S.link && (S.link.a === i || S.link.b === i)) S.link = null;
+  log({ sys:`☠️ ${p.name} ist raus!` });
+}
+function knockOutDead(){ SEATS.forEach(i => { const p=S.seats[i]; if (p && p.alive && p.hearts <= 0) knockOut(i); }); }
+function checkWin(){
+  if (S.phase !== 'play') return true;
+  const alive = aliveSeats(S);
+  if (alive.length <= 1) {
+    S.phase = 'over';
+    S.winner = alive.length ? S.seats[alive[0]].name : null;
+    log({ sys: S.winner ? `🏆 ${S.winner} gewinnt die Runde!` : '🤝 Keiner hat überlebt – unentschieden!' });
+    return true;
+  }
+  return false;
+}
+
+// ---- Karten geben (mit Tarnung für Pascal und Kevin, Geheimnis durch Furry Baddie) ----
+const PASCAL_LOOKS = CARDS.map((_, k) => k).filter(k => ![PASCAL, SCHOKO, TASK, SOLUTION, GRILL, CIG, MINE, PLAN].includes(k));
+const FX_POOL = PASCAL_LOOKS.filter(k => k !== CLOWN);              // Karten, deren Effekt Pascal & Geheimplan auslösen können
+function randArg(c, seat){ return CARDS[c].choose ? pickTarget(c, seat) : CARDS[c].options ? Math.floor(Math.random()*2) : -1; }
+function dressed(c){
+  if (c === PASCAL) return mk(c, false, Math.random() < 0.7 ? GRILL : pick(PASCAL_LOOKS));   // 70 % sieht aus wie Grillenberger
+  if (c === KEVIN)  return mk(c, false, DONER);                                              // sieht aus wie Dönerspieß
+  return c;
+}
+// Faktoren für die Ziehchance (Herr Rittner, Let it ride, Pussy Pattern)
+function multFor(seat){
+  const m = {}, me = seat >= 0 ? S.seats[seat] : null, mul = (k, f) => { m[k] = (m[k] || 1) * f; };
+  if (S.rittnerUntil > S.turnNo) { HEAL_CARDS.forEach(k => mul(k, 2)); mul(CIG, 2); }
+  if (me && me.luckUntil > S.turnNo) GOOD_CARDS.forEach(k => mul(k, 3));
+  if (S.patternUntil > S.turnNo) { mul(MODDED, 5); mul(BTC, 5); }
+  return m;
+}
+function drawCard(seat = -1){
+  if (Math.random() < SCHOKO_CHANCE) return SCHOKO;   // 0,01 % – der legendäre Schokokuss
+  if (S.deck.length === 0) { S.deck = newDeck(); log({ sys:'🔄 Der Stapel wurde neu gemischt.' }); }
+  // Chance-Faktoren: mit Wahrscheinlichkeit W/(n+W) eine "verstärkte" Karte aus dem Stapel holen – ergibt genau Anzahl·Faktor
+  const m = multFor(seat), n = S.deck.length, idx = [], ws = []; let W = 0;
+  S.deck.forEach((x, i) => { const k = x % HIDDEN; if (x < DIS && m[k] > 1) { idx.push(i); ws.push(m[k] - 1); W += m[k] - 1; } });
+  if (W > 0 && Math.random() < W / (n + W)) {
+    let r = Math.random() * W, j = 0;
+    while (j < ws.length - 1 && r >= ws[j]) { r -= ws[j]; j++; }
+    return S.deck.splice(idx[j], 1)[0];
+  }
+  return S.deck.pop();
+}
+// gibt dem Spieler eine Karte. Rückgabe: true / 'task' / 'mine' / 'cig' / 'auto' / false (Hand voll)
+function giveDrawn(seat){
+  const me = S.seats[seat];
+  if (me.taskUntil > S.turnNo) { if (S.hands[seat].length < HAND_MAX) S.hands[seat].push(TASK); return 'task'; }
+  if (S.hands[seat].length >= HAND_MAX) return false;
+  const raw = drawCard(seat), c = cardOf(raw);
+  if (c === MINE) {                                   // 💥 versteckte Mine
+    const by = Math.floor(raw / DIS) - 1, att = S.seats[by] || null;
+    S.pile.push(MINE); S.pile = S.pile.slice(-4);
+    log({ sys:`💥 BOOM! ${me.name} zieht eine Mine${att ? ` von ${att.name}` : ''}: ` + attack(att, me, dmg(1)) });
+    return 'mine';
+  }
+  if (c === CIG) {                                    // 🚬 schlägt beim Ziehen zu
+    S.pile.push(CIG); S.pile = S.pile.slice(-4);
+    hurt(me, 1);
+    log({ sys:`🚬 ${me.name} zieht eine Zigaretten-Pause: −1 Herz (${H(Math.max(me.hearts,0))} übrig) und Pause – der Zug ist vorbei.` });
+    return 'cig';
+  }
+  if (S.patternUntil > S.turnNo && (c === MODDED || c === BTC)) {   // 🌀 wird sofort gespielt
+    S.pile.push(c); S.pile = S.pile.slice(-4);
+    const entry = log({ name: me.name, c, res:'…' });
+    entry.res = '🌀 sofort gespielt → ' + effect(seat, c, -1).res;
+    return 'auto';
+  }
+  let x = dressed(c);
+  if (me.fur) { me.fur = false; x = hideCard(x); }  // Furry Baddie: diese Karte bleibt geheim
+  S.hands[seat].push(x);
+  return true;
+}
+function addMine(by){
+  const pos = Math.max(0, S.deck.length - (1 + Math.floor(Math.random() * 30)));   // irgendwo in den nächsten 30 Karten
+  S.deck.splice(pos, 0, MINE + DIS * (by + 1));
+}
+// eine zufällige Karte von einem Spieler zum anderen (bei voller Hand zurück in den Stapel)
+function stealCard(fromSeat, toSeat){
+  const h = S.hands[fromSeat];
+  if (!h.length) return false;
+  const x = h.splice(Math.floor(Math.random()*h.length), 1)[0];
+  if (S.hands[toSeat].length < HAND_MAX) S.hands[toSeat].push(x); else S.deck.unshift(cardOf(x));
+  return true;
+}
+
+function beginTurn(i){
+  S.turnNo++;
+  // 👻 Leutrim taucht wieder auf
+  S.leutrim = S.leutrim.filter(l => {
+    if (l.at > S.turnNo) return true;
+    const by = S.seats[l.by];
+    if (!by || !by.alive) { log({ sys:'👻 Leutrim taucht wieder auf … aber niemand wartet auf ihn. Er verschwindet für immer.' }); return false; }
+    const victims = aliveSeats(S).filter(k => k !== l.by);
+    if (!victims.length) return false;
+    const v = pick(victims), vp = S.seats[v];
+    if (S.hands[v].length) { stealCard(v, l.by); log({ sys:`👻 Leutrim taucht wieder auf! Er klaut ${vp.name} eine Karte und gibt sie ${by.name}.` }); }
+    else { rawHeal(vp); log({ sys:`👻 Leutrim taucht wieder auf! ${vp.name} hat keine Karten – dafür wird ${vp.name} geheilt ❤️` }); }
+    return false;
+  });
+  const tp = S.seats[i];
+  if (tp && tp.taskUntil > S.turnNo) S.hands[i] = [TASK, TASK, TASK];   // 🎰 Pech gehabt: nur Prüfungsaufgaben
+  S.turn = i; S.drew = false; S.step = S.hands[i].length < HAND_MAX ? 'draw' : 'act';
+  if (S.link && S.link.a === i) { log({ sys:`🔗 Die Verbindung von ${S.seats[S.link.a].name} und ${S.seats[S.link.b].name} ist vorbei.` }); S.link = null; }
+  if (S.zh > 0 && --S.zh === 0) log({ sys:'🀄 Herr Günther ist weg – das Spiel ist wieder auf Deutsch.' });
+}
+
+// ---- Schaden & Heilung (mit 🔗 Goonnectet: der verbundene Spieler bekommt dasselbe ab) ----
+function partnerOf(p){ if (!S.link) return null; const i = seatIdx(p); return i === S.link.a ? S.seats[S.link.b] : i === S.link.b ? S.seats[S.link.a] : null; }
+function rawHurt(p, n){ p.hearts -= n; p.infected = Math.max(0, Math.min(p.infected, p.hearts)); p.pending = Math.min(p.pending||0, p.infected); }
+function hurt(p, n, share=true){
+  rawHurt(p, n);
+  const q = share && partnerOf(p);
+  if (q && q.alive) { rawHurt(q, n); log({ sys:`🔗 ${q.name} ist mit ${p.name} verbunden und verliert auch ${H(n)}.` }); }
+}
+function rawHeal(p){
+  if (p.infected > 0) { p.infected--; p.pending = Math.min(p.pending||0, p.infected); return 'heal'; }
+  if (p.hearts < MAX_HEARTS) { p.hearts++; return 'plus'; }
+  return null;
+}
+function heal(p, share=true){
+  const r = rawHeal(p);
+  const q = share && partnerOf(p);
+  if (q && q.alive && rawHeal(q)) log({ sys:`🔗 ${q.name} ist mit ${p.name} verbunden und wird auch geheilt.` });
+  return r;
+}
+// ---- Angriff: 😼 Meowskulls wirft ihn zurück, 🛡️ Schild blockt ihn ----
+function attack(att, p, apply){
+  if (p.reflect && p !== att) {
+    p.reflect = false;
+    if (!att || !att.alive) return `${p.name} wirft es mit Meowskulls 😼 zurück – ins Leere`;
+    if (att.shield) { att.shield = false; return `${p.name} wirft es mit Meowskulls 😼 zurück – aber ${att.name} blockt mit dem Schild 🛡️`; }
+    return `${p.name} wirft es mit Meowskulls 😼 zurück → ${apply(att)}`;
+  }
+  if (p.shield) { p.shield = false; return `${p.name} blockt mit dem Schild 🛡️`; }
+  return apply(p);
+}
+const dmg = n => t => { hurt(t, n); return `${t.name} verliert ${H(n)} (${H(Math.max(t.hearts,0))} übrig)`; };
+const infect = t => { if (t.infected < t.hearts) { t.infected++; t.pending = (t.pending||0) + 1; return `${t.name} ist infiziert – ein Herz wird grün 💚`; } return `${t.name} ist infiziert – aber alle Herzen sind schon grün`; };
+const skipT = t => { t.skip = true; return `${t.name} muss die nächste Runde aussetzen 😴`; };
+
+// Zug an den nächsten lebenden Spieler (in Spielrichtung) geben – dabei greifen Infektion und Aussetzen
+function clownRoll(){
+  for (const i of aliveSeats(S)) {
+    const n = S.hands[i].filter(x => cardOf(x) === CLOWN).length;
+    for (let k = 0; k < n; k++) {
+      if (Math.random() < CLOWN_CHANCE) {
+        S.hands[i] = S.hands[i].filter(x => cardOf(x) !== CLOWN);   // der Clown verschwindet mit ihm
+        log({ sys:`🤡 Clownchan schlägt zu! ${S.seats[i].name} hatte ihn auf der Hand und ist raus.` });
+        knockOut(i);
+        break;
+      }
+    }
+  }
+}
+function advance(from){
+  clownRoll();
+  if (checkWin()) return;
+  for (let k=1;k<=N;k++){
+    const i = ((from + k*S.dir) % N + N) % N, p = S.seats[i];
+    if (!p || !p.alive) continue;
+    const due = p.infected - (p.pending||0);   // grüne Herzen, die schon einen Zug alt sind
+    p.pending = 0;
+    if (due > 0) {
+      p.infected -= due; hurt(p, due);
+      log({ sys:`🦠 Die Infektion schlägt zu: ${p.name} verliert ${H(due)}.` });
+      knockOutDead();
+      if (checkWin()) return;
+      if (!p.alive) continue;
+    }
+    if (p.skip) {
+      p.skip = false;
+      if (p.trap) { p.trap = false; S.freddy = null; log({ sys:`🐻 ${p.name} setzt aus – Freddys Falle verpufft.` }); }
+      log({ sys:`😴 ${p.name} setzt diese Runde aus.` });
+      continue;
+    }
+    return beginTurn(i);
+  }
+  if (!checkWin()) beginTurn(aliveSeats(S)[0]);
+}
+
+function startGame(){
+  const n = S.seats.filter(Boolean).length;
+  if (n < 2) return;
+  S.seats = S.seats.map(p => p ? newPlayer(p.name, false, !!p.bot) : null);
+  S.hands = SEATS.map(() => []);
+  S.mix = null;
+  Object.assign(S, { deck:newDeck(DECK_MIX), pile:[], winner:null, round:Date.now(), dir:1, zh:0, link:null, freddy:null, phase:'play', bg:-1, leutrim:[], lastCard:-1, turnNo:0, rittnerUntil:0, patternUntil:0, btc:0 });
+  beginTurn(pick(aliveSeats(S)));
+  log({ sys:`🃏 Neue Runde! ${S.seats[S.turn].name} fängt an.` });
+  broadcast();
+}
+
+function doDraw(seat){
+  if (effTurn(S) !== seat || S.step !== 'draw') return;
+  const me = S.seats[seat];
+  const res = giveDrawn(seat);
+  S.step = 'act'; S.drew = true;
+  knockOutDead();
+  if (S.phase === 'play' && !checkWin() && (!me.alive || res === 'cig')) advance(seat);   // tot oder Zigaretten-Pause -> Zug vorbei
+  broadcast();
+}
+function doPass(seat){
+  if (effTurn(S) !== seat || S.step !== 'act' || !S.drew) return;
+  const me = S.seats[seat];
+  log({ sys:`✋ ${me.name} hebt die Karten auf und beendet den Zug.` });
+  if (me.trap) { me.trap = false; S.freddy = null; log({ sys:`🐻 ${me.name} hat keine Karte gelegt – Freddys Falle ist harmlos verpufft.` }); }
+  advance(seat);
+  broadcast();
+}
+
+// wer darf bei einer Wahl-Karte getroffen werden?
+function eligible(c, seat){
+  const others = aliveSeats(S).filter(i => i !== seat);
+  return c === WANU ? others.filter(i => S.hands[i].length > 0) : others;
+}
+function pickTarget(c, seat, tgt){ const l = eligible(c, seat); return l.includes(tgt) ? tgt : (l.length ? pick(l) : -1); }
+
+// 🐻 Freddy schnappt zu, wenn der Gefangene eine Karte legt. Gibt true zurück, wenn er dabei stirbt.
+function freddyCheck(seat, entry){
+  const me = S.seats[seat];
+  if (!me.trap) return false;
+  me.trap = false;
+  const f = S.freddy, att = f ? S.seats[f.by] : null;
+  const res = attack(att, me, dmg(1));
+  log({ sys:`🐻 Freddy Fazebear! Es war eine Falle von ${att ? att.name : 'jemandem'}: ${res}` });
+  S.freddy = null;                                    // Tarnung fliegt auf
+  knockOutDead();
+  if (!me.alive) { entry.res = 'wurde von Freddy erwischt, bevor die Karte wirken konnte 🐻'; return true; }
+  return false;
+}
+
+// Wirkung einer Karte. Gibt { res, target, fid, end } zurück.
+function effect(seat, c, tgt){
+  const me = S.seats[seat];
+  const nextP = () => S.seats[nextAliveSeat(S, seat)];
+  const chosen = tgt >= 0 ? S.seats[tgt] : null;
+  if (CARDS[c].choose && c !== WANU && (!chosen || !chosen.alive)) return { res:'aber es ist niemand mehr da 🤷' };
+  switch (c) {
+    case SCHOKO: {
+      aliveSeats(S).forEach(i => knockOut(i));
+      S.phase = 'over'; S.winner = null;
+      log({ sys:'🍫 Der Schokokuss hat alle erwischt – niemand gewinnt!' });
+      return { res:'ALLE sterben. 🍫 Niemand gewinnt.', end:true };
+    }
+    case 0: { const p = nextP(); return { target:p.name, res: attack(me, p, infect) }; }
+    case 2: { const p = nextP(); return { target:p.name, res: attack(me, p, dmg(1)) }; }
+    case 1: { const h = heal(me); return { res: h === 'heal' ? 'wird geheilt – ein grünes Herz wird wieder rot ❤️' : h === 'plus' ? `bekommt 1 Herz zurück (${H(me.hearts)})` : 'hat schon volle Herzen' }; }
+    case 3: {                                      // 😱 IYAAAH – alle verlieren 1
+      const notes = [];
+      aliveSeats(S).forEach(i => {
+        const p = S.seats[i];
+        if (p !== me && p.reflect) { p.reflect = false; rawHurt(me, 1); notes.push(`${p.name} wirft es zurück 😼`); }
+        else if (p.shield) { p.shield = false; notes.push(`${p.name} blockt 🛡️`); }
+        else rawHurt(p, 1);
+      });
+      return { res: 'ALLE verlieren 1 Herz!' + (notes.length ? ` (${notes.join(', ')})` : '') };
+    }
+    case 4: { if (me.shield) return { res:'hat schon ein Schild 🛡️' }; me.shield = true; return { res:'bekommt ein Schild 🛡️' }; }
+    case 5: {                                      // 🤷 Ist mir egal – Hände tauschen
+      const alive = aliveSeats(S);
+      if (alive.length < 2) return { res:'aber es gibt niemanden zum Tauschen' };
+      let perm; do { perm = shuffle(alive.slice()); } while (perm.some((y, k) => y === alive[k]));
+      const old = alive.map(i => S.hands[i]);
+      alive.forEach((i, k) => { S.hands[perm[k]] = old[k]; });
+      return { res:'alle Handkarten werden zufällig getauscht 🔀' };
+    }
+    case 6: {                                      // 🧔 Kosta
+      let n = 0;
+      S.hands.forEach(h => { h.forEach(x => { n++; const k = cardOf(x); if (k !== TASK && k !== SOLUTION) S.deck.push(k); }); h.length = 0; });
+      shuffle(S.deck);
+      return { res: n ? `alle legen ihre Karten zurück auf den Stapel (${n} Karten) – neu gemischt 🔄` : 'aber keiner hat Karten auf der Hand' };
+    }
+    case 7:  return { target:chosen.name, res: attack(me, chosen, dmg(1)) };
+    case 8:  return { target:chosen.name, res: attack(me, chosen, skipT) };
+    case 9:  { aliveSeats(S).forEach(i => rawHeal(S.seats[i])); return { res:'ALLE werden geheilt 😽' }; }
+    case 10: { S.dir = -S.dir; return { res:`die Spielrichtung dreht sich um – jetzt ${S.dir === 1 ? 'im' : 'gegen den'} Uhrzeigersinn` }; }
+    case 12: { const p = nextP(); p.fur = true; return { target:p.name, res:`${p.name}s nächste Karte bleibt geheim ❓` }; }
+    case 13: {                                     // 🦇 Goth Baddie
+      const alive = aliveSeats(S);
+      const pool = shuffle(alive.flatMap(i => S.hands[i].map(cardOf)));
+      alive.forEach(i => { const n = S.hands[i].length; S.hands[i] = pool.splice(0, n).map(y => mk(y, true)); });
+      return { res:'alle Karten werden verdeckt und zufällig neu verteilt 🦇❓' };
+    }
+    case 14: { S.zh = 3 * aliveSeats(S).length + 1; return { res:'说中文！Das Spiel ist jetzt 3 Runden lang auf Chinesisch 🀄' }; }
+    case 15: { if (me.reflect) return { res:'hat schon Meowskulls 😼' }; me.reflect = true; return { res:'hat jetzt Meowskulls 😼 – der nächste Angriff fliegt zurück' }; }
+    case GRILL: return { res:'macht … gar nichts 🦗' };
+    case FREDDY: {                                 // 🐻 getarnte Falle – schnappt zu, wenn der Nächste eine Karte legt
+      const p = nextP(); p.trap = true;
+      const fakes = CARDS.map((_, k) => k).filter(k => DECK_MIX[k] > 0 && k !== FREDDY);
+      const fid = ++S.fid;
+      S.freddy = { by: seat, fake: pick(fakes), id: fid };
+      return { target:p.name, fid, res:`${p.name} verliert 1 Herz, sobald er eine Karte legt 🐻` };
+    }
+    case 18: { S.link = { a: seat, b: tgt }; return { target:chosen.name, res:`${me.name} und ${chosen.name} teilen sich bis zu ${me.name}s nächstem Zug Schaden und Heilung 🔗` }; }
+    case MODDED: {
+      let b; do { b = Math.floor(Math.random()*BG_COUNT); } while (b === S.bg && BG_COUNT > 1);
+      S.bg = b;
+      return { res:'👾 Is this game modded?! Der Hintergrund hat sich verändert …' };
+    }
+    case PASCAL: {                                 // 🎭 zufälliger Effekt einer anderen Karte
+      const r = pick(FX_POOL);
+      const inner = effect(seat, r, randArg(r, seat));
+      return { ...inner, res:`🎭 Pascal! Zufallseffekt ${CARDS[r].emoji} „${CARDS[r].text}“ → ${inner.res}` };
+    }
+    case KEVIN: {
+      me.infected = me.hearts; me.pending = me.hearts;
+      return { res:`🍕 alle Herzen von ${me.name} werden infiziert 💚 (in 2 Zügen sind sie weg – schnell heilen!)` };
+    }
+    case DONER: {
+      const n = S.lastCard === LEON ? 3 : 1;
+      aliveSeats(S).forEach(i => { for (let k=0;k<n;k++) rawHeal(S.seats[i]); });
+      return { res: n === 3 ? 'direkt nach Leon! ALLE werden um 3 ❤️ geheilt 🥙🔥' : 'ALLE werden um 1 ❤️ geheilt 🥙' };
+    }
+    case WANU: {
+      if (!chosen) return { res:'aber niemand hat Karten zum Klauen 🦝' };
+      const steal = t => {
+        const from = t, to = t === chosen ? me : chosen;
+        return stealCard(seatIdx(from), seatIdx(to)) ? `${to.name} klaut ${from.name} eine Karte 🦝` : `${from.name} hat keine Karten`;
+      };
+      return { target:chosen.name, res: attack(me, chosen, steal) };
+    }
+    case CHAIR: return { target:chosen.name, res: attack(me, chosen, t => { hurt(t, 1); t.skip = true; return `${t.name} verliert 1 Herz und muss aussetzen 🪑💥 (${H(Math.max(t.hearts,0))} übrig)`; }) };
+    case TORKE: { let n = 0; for (let k=0;k<2;k++) if (giveDrawn(seat)) n++; return { res: n ? `zieht ${n === 1 ? 'eine Karte' : 'zwei Karten'} 🎴` : 'hat keinen Platz für neue Karten' }; }
+    case SPECK: { me.color = 'blue'; return { res:'alle Herzen werden blau 💙 (es ändert sich nichts)' }; }
+    case LEUTRIM: {
+      S.leutrim.push({ by: seat, at: S.turnNo + 1 + Math.floor(Math.random()*20) });
+      return { res:'👻 … und verschwindet. Wann taucht er wieder auf?' };
+    }
+    case RCD: {
+      if (Math.random() < 0.5) {
+        const notes = [];
+        aliveSeats(S).forEach(i => { const p = S.seats[i]; if (p.shield) { p.shield = false; notes.push(`${p.name} blockt 🛡️`); } else rawHurt(p, 2); });
+        return { res:'⚡💥 RCD löst aus und EXPLODIERT! Alle verlieren 2 Herzen' + (notes.length ? ` (${notes.join(', ')})` : '') };
+      }
+      aliveSeats(S).forEach(i => { rawHeal(S.seats[i]); rawHeal(S.seats[i]); });
+      return { res:'⚡🛡️ RCD schützt – alle bekommen 2 Herzen' };
+    }
+    case BARTHEL: {
+      const slots = [];
+      aliveSeats(S).forEach(i => { while (S.hands[i].length < HAND_MAX) { S.hands[i].push(TASK); slots.push([i, S.hands[i].length - 1]); } });
+      if (slots.length && Math.random() < 0.2) { const [i, k] = pick(slots); S.hands[i][k] = SOLUTION; }
+      return { res: slots.length ? `füllt alle Hände mit Prüfungsaufgaben 📝 (${slots.length} Stück) – hat vielleicht jemand die Lösung?` : 'aber alle Hände sind schon voll' };
+    }
+    case TASK: return { res:'gibt eine Prüfungsaufgabe ab … nichts passiert 📄' };
+    case SMARTER: {                                // 🤓 alle Chancen zufällig – bis jemand gewinnt
+      S.mix = DECK_MIX.map(n => n > 0 ? 1 + Math.floor(Math.random() * 16) : 0);
+      const mines = S.deck.filter(x => cardOf(x) === MINE);
+      S.deck = newDeck(S.mix);
+      mines.forEach(x => addMine(Math.floor(x / DIS) - 1));
+      const top = S.mix.map((n, k) => [n, k]).sort((a, b) => b[0] - a[0]).slice(0, 3).map(([, k]) => CARDS[k].emoji).join(' ');
+      return { res:`🤓 alle Karten-Chancen sind jetzt durcheinander (Stapel neu gemischt) – am häufigsten jetzt: ${top}` };
+    }
+    case GINGER: {                                 // 🧡 orange Herzen + Furry-Effekt für alle
+      me.color = 'orange';
+      aliveSeats(S).forEach(i => { S.seats[i].fur = true; });
+      return { res:'die Herzen werden orange 🧡 – und die nächste Karte von ALLEN bleibt geheim ❓' };
+    }
+    case CLOWN: {                                  // 🤡 heiße Kartoffel weitergeben
+      const ni = nextAliveSeat(S, seat), p = S.seats[ni], h = S.hands[ni];
+      if (h.length < HAND_MAX) { h.push(CLOWN); return { target:p.name, res:`gibt Clownchan 🤡 an ${p.name} weiter!` }; }
+      const k = Math.floor(Math.random()*h.length), old = cardOf(h[k]);
+      h[k] = CLOWN; if (old !== TASK && old !== SOLUTION && old !== CLOWN) S.deck.unshift(old);
+      return { target:p.name, res:`gibt Clownchan 🤡 an ${p.name} weiter – ${p.name}s Hand war voll, eine Karte fliegt dafür raus!` };
+    }
+    case MACJ: {                                   // 🧃 zufälliger Effekt für den Nächsten
+      const p = S.seats[nextAliveSeat(S, seat)];
+      const r = pick(['dead', 'wife', 'shield', 'infect']);
+      if (r === 'dead')   return { target:p.name, res:'🧃 → 💀 ' + attack(me, p, dmg(1)) };
+      if (r === 'infect') return { target:p.name, res:'🧃 → 🦠 ' + attack(me, p, infect) };
+      if (r === 'wife')   { const h = heal(p); return { target:p.name, res:`🧃 → 💍 ${p.name} ${h === 'heal' ? 'wird geheilt ❤️' : h === 'plus' ? `bekommt 1 Herz (${H(p.hearts)})` : 'hat schon volle Herzen'}` }; }
+      if (p.shield) return { target:p.name, res:`🧃 → 🛡️ ${p.name} hat schon ein Schild` };
+      p.shield = true; return { target:p.name, res:`🧃 → 🛡️ ${p.name} bekommt ein Schild` };
+    }
+    case RITTNER: {
+      S.rittnerUntil = S.turnNo + 20 * aliveSeats(S).length;
+      return { res:'20 Runden lang kommen Heilkarten 💍😽🥙🍺 doppelt so oft – aber auch 🚬 Zigaretten-Pausen!' };
+    }
+    case CIG: { hurt(me, 1); return { res:`raucht eine 🚬 – −1 Herz (${H(Math.max(me.hearts,0))} übrig)` }; }
+    case MINE: { hurt(me, 1); return { res:`tritt auf eine 💥 Mine – −1 Herz` }; }
+    case SNOWBALL: {                               // 📈 alle bekommen Döner … oder Kevin
+      let n = 0;
+      aliveSeats(S).forEach(i => { if (S.hands[i].length < HAND_MAX) { S.hands[i].push(Math.random() < 0.5 ? DONER : dressed(KEVIN)); n++; } });
+      let btc = 0;
+      if (Math.random() < 0.5) while (S.hands[seat].length < HAND_MAX) { S.hands[seat].push(BTC); btc++; }
+      return { res:`${n ? `${n} Spieler bekommen einen 🥙 Dönerspieß (… oder doch 🍕?)` : 'aber alle Hände sind voll'}${btc ? ` – und ${me.name}s Hand wird mit ${btc} 🪙 Bitcoin gefüllt` : ''}` };
+    }
+    case BTC: {
+      S.btc = (S.btc || 0) + 1;
+      if (S.btc >= 20) { S.btc = 0; aliveSeats(S).forEach(i => rawHeal(S.seats[i])); return { res:'🪙 Bitcoin Nr. 20! TO THE MOON 🚀 – ALLE bekommen 1 ❤️' }; }
+      return { res:`🪙 Bitcoin ${S.btc}/20 – noch passiert nichts` };
+    }
+    case DOG: {
+      if (tgt !== 1) return { res:'🔫 erschießt den Hund. Es passiert nichts.' };
+      if (Math.random() < 0.8) return { res:'🤠 Sandro zähmt ihn … der Hund beißt! ' + infect(me) };
+      const h = heal(me); return { res:`🤠 Sandro zähmt ihn – braver Hund 🐕 ${h === 'heal' ? 'heilt ein grünes Herz ❤️' : h === 'plus' ? `+1 Herz (${H(me.hearts)})` : '(Herzen schon voll)'}` };
+    }
+    case MINECARD: { addMine(seat); return { res:'versteckt eine 💣 Mine irgendwo in den nächsten 30 Karten …' }; }
+    case RIDE: {
+      const until = S.turnNo + 3 * aliveSeats(S).length;
+      if (Math.random() < 0.5) { me.luckUntil = until; return { res:'🎰 GEWONNEN! 3 Runden lang zieht er viel öfter gute Karten 🍀' }; }
+      me.taskUntil = until; S.hands[seat] = [TASK, TASK, TASK];
+      return { res:'🎰 verloren … 3 Runden lang hat er nur 📄 Prüfungsaufgaben auf der Hand' };
+    }
+    case PATTERN: { S.patternUntil = S.turnNo + 3 * aliveSeats(S).length; return { res:'🌀 3 Runden lang kommen 👾 Modded und 🪙 Bitcoin viel öfter – und werden sofort gespielt!' }; }
+    case PLANS: {
+      if (S.hands[seat].length >= HAND_MAX) return { res:'aber hat keinen Platz für den Plan' };
+      S.hands[seat].push(mk(PLAN, true));
+      return { res:'bekommt Birkichts Geheimplan 🗺️❓ – keiner weiß, was drinsteht' };
+    }
+    case PLAN: {
+      const parts = [];
+      for (let k = 0; k < 2 && S.phase === 'play'; k++) {
+        const r = pick(FX_POOL), inner = effect(seat, r, randArg(r, seat));
+        parts.push(`${CARDS[r].emoji} ${CARDS[r].text} → ${inner.res}`);
+        knockOutDead(); if (checkWin() || inner.end) break;
+      }
+      return { res:'🗺️ Der Plan: ' + parts.join(' | ') };
+    }
+    case BEER: {                                   // 🍺 bis 3 Bier heilt, danach tut es weh
+      me.beer = (me.beer || 0) + 1;
+      if (me.beer <= 3) { const h = heal(me); return { res:`trinkt Bier Nr. ${me.beer} 🍺 – ${h === 'heal' ? 'ein grünes Herz wird wieder rot ❤️' : h === 'plus' ? `+1 Herz (${H(me.hearts)})` : 'aber hat schon volle Herzen'}` }; }
+      hurt(me, 1);
+      return { res:`trinkt Bier Nr. ${me.beer} 🍺🥴 – zu viel! −1 Herz (${H(Math.max(me.hearts,0))} übrig)` };
+    }
+    case SOLUTION: {
+      const h = S.hands[seat];
+      const n = h.filter(x => cardOf(x) === TASK).length;
+      S.hands[seat] = h.filter(x => cardOf(x) !== TASK);
+      S.hands[seat].push(1);
+      return { res:`hat die Lösung 🔑! ${n ? `${n} Prüfungsaufgabe${n === 1 ? '' : 'n'} verschwinden und ` : ''}bekommt „Ich hasse meine Frau“ 💍` };
+    }
+  }
+  return { res:'' };
+}
+
+function finishPlay(seat){
+  knockOutDead();
+  if (!checkWin()) advance(seat);
+  broadcast();
+}
+
+function doPlay(seat, idx, tgt, all3){
+  if (effTurn(S) !== seat || S.step !== 'act') return;
+  const hand = S.hands[seat], me = S.seats[seat];
+
+  // 🦗🦗🦗 Grillenberger-Kombo: alle drei auf einmal (aber vielleicht ist ein Pascal dabei …)
+  if (all3) {
+    if (hand.length !== 3 || !hand.every(x => shownTo(x) === GRILL)) return;
+    const real = hand.map(cardOf); hand.length = 0;
+    S.pile.push(GRILL, GRILL, GRILL); S.pile = S.pile.slice(-4);
+    const entry = log({ name: me.name, c: GRILL, res:'…', combo:true });
+    if (freddyCheck(seat, entry) || checkWin()) return finishPlay(seat);
+    if (real.every(c => c === GRILL)) {
+      const p = S.seats[nextAliveSeat(S, seat)];
+      entry.target = p.name; entry.res = 'DREIFACH-GRILLENBERGER 🦗🦗🦗 → ' + attack(me, p, dmg(3));
+    } else {
+      const parts = [];
+      real.forEach(c => { if (c === PASCAL && S.phase === 'play') parts.push(effect(seat, PASCAL, -1).res); });
+      entry.res = `🎭 Reingelegt! Unter den Grillenbergern ${parts.length === 1 ? 'war ein Pascal' : `waren ${parts.length} Pascals`}: ${parts.join(' | ')}`;
+    }
+    S.lastCard = GRILL;
+    if (S.phase !== 'play') return broadcast();
+    return finishPlay(seat);
+  }
+
+  if (!Number.isInteger(idx) || idx < 0 || idx >= hand.length) return;
+  const x = hand[idx], c = cardOf(x), shown = shownTo(x);
+  if (shown >= 0 && CARDS[shown].options && ![0, 1].includes(tgt)) return;   // Hund: Wahl fehlt
+  if (shown >= 0 && CARDS[shown].choose) {          // der Spieler glaubt, er muss ein Ziel wählen
+    const l = eligible(shown, seat);
+    if (l.length && !l.includes(tgt)) return;
+  }
+  hand.splice(idx, 1);
+  if (c !== LEUTRIM && c !== CLOWN) { S.pile.push(c); S.pile = S.pile.slice(-4); }   // Leutrim verschwindet, Clownchan wandert weiter
+  const d = disgOf(x);
+  const entry = log({ name: me.name, c, hid: isHidden(x), dis: (!isHidden(x) && d !== null) ? d : undefined, res:'…' });
+  if (freddyCheck(seat, entry) || checkWin()) { if (S.phase === 'over' && entry.res === '…') entry.res = 'zu spät – das Spiel ist schon vorbei 🐻'; return finishPlay(seat); }
+  const t = CARDS[c].choose ? pickTarget(c, seat, shown === c ? tgt : undefined)
+          : CARDS[c].options ? (shown === c && [0, 1].includes(tgt) ? tgt : Math.floor(Math.random()*2)) : -1;
+  const r = effect(seat, c, t);
+  entry.res = r.res; if (r.target) entry.target = r.target; if (r.fid) entry.fid = r.fid;
+  S.lastCard = c;
+  if (r.end) return broadcast();
+  finishPlay(seat);
+}
+
+// ================= BOTS (laufen beim Raum-Ersteller) =================
+const BOT_NAMES = ['Bot Bernd', 'Bot Uschi', 'Bot Kalle', 'Bot Gisela', 'Bot Horst', 'Bot Erika'];
+function addBot(){
+  if (!isHost || S.phase === 'play') return;
+  const free = S.seats.findIndex(x => !x);
+  if (free < 0) return;
+  const used = S.seats.filter(Boolean).map(p => p.name);
+  const name = BOT_NAMES.find(n => !used.includes(n)) || 'Bot';
+  S.seats[free] = newPlayer(name, false, true);
+  log({ sys:`🤖 ${name} spielt mit.` });
+  broadcast();
+}
+function removeBot(i){
+  if (!isHost || S.phase === 'play' || !S.seats[i] || !S.seats[i].bot) return;
+  log({ sys:`🤖 ${S.seats[i].name} geht.` });
+  S.seats[i] = null; S.hands[i] = [];
+  broadcast();
+}
+let botTimer = null, botKey = '';
+function scheduleBot(){
+  if (!isHost || !S || S.phase !== 'play') return;
+  const t = effTurn(S);
+  if (t < 0 || !S.seats[t].bot) return;
+  const key = `${S.round}:${S.turnNo}:${S.step}`;
+  if (key === botKey) return;
+  botKey = key;
+  clearTimeout(botTimer);
+  botTimer = setTimeout(() => botMove(t), 900 + Math.random()*900);
+}
+function botMove(seat){
+  if (S.phase !== 'play' || effTurn(S) !== seat) return;
+  if (S.step === 'draw') return doDraw(seat);
+  const d = botDecide(seat);
+  if (d.pass) doPass(seat); else doPlay(seat, d.i, d.t, d.all3);
+}
+// einfacher Bot: sieht nur, was ein Mensch auch sehen würde (Tarnkarten täuschen ihn genauso)
+function botDecide(seat){
+  const me = S.seats[seat], seen = S.hands[seat].map(shownTo);
+  if (seen.length === 3 && seen.every(c => c === GRILL)) return { all3:true };
+  const others = aliveSeats(S).filter(i => i !== seat);
+  const red = me.hearts - me.infected, hurtMe = me.hearts < MAX_HEARTS || me.infected > 0;
+  const score = c => {
+    if (c === -1) return 1;
+    if ([1, 9, 22, SOLUTION].includes(c)) return hurtMe ? 8 : 0;
+    if (c === CLOWN) return 9;
+    if (c === BTC) return (S.btc || 0) >= 19 ? 8 : -1;
+    if (c === DOG) return 0;
+    if (c === MINECARD) return 3;
+    if ([RITTNER, SNOWBALL, PLANS].includes(c)) return 2;
+    if (c === MACJ) return 3;
+    if (c === BEER) return (me.beer || 0) >= 3 ? (me.hearts > 1 ? -2 : -20) : (hurtMe ? 8 : 0);
+    if ([0, 2, 7, 24, 17, 8].includes(c)) return 5;
+    if (c === WANU) return others.some(i => S.hands[i].length) ? 4 : -1;
+    if (c === 4) return me.shield ? -1 : 4;
+    if (c === 15) return me.reflect ? -1 : 4;
+    if (c === 3) return red <= 1 ? -10 : 2;
+    if (c === RCD) return me.hearts >= 3 ? 1 : -3;
+    if (c === SCHOKO) return -100;
+    if (c === KEVIN) return -20;
+    if (c === GRILL) return -4;
+    if (c === TASK) return -1;
+    if (c === 18) return -2;
+    return 1;
+  };
+  let best = -1e9, bi = 0;
+  seen.forEach((c, i) => { const s = score(c) + Math.random(); if (s > best) { best = s; bi = i; } });
+  if (S.drew && best < 2) return { pass:true };
+  const c = seen[bi];
+  let t;
+  if (c >= 0 && CARDS[c].options) t = 0;                            // Bot erschießt lieber den Hund
+  if (c >= 0 && CARDS[c].choose) {
+    const l = eligible(c, seat);
+    if (c === WANU) t = l.sort((a, b) => S.hands[b].length - S.hands[a].length)[0];
+    else t = l.sort((a, b) => (S.seats[a].hearts - S.seats[b].hearts) || (Math.random() - 0.5))[0];
+  }
+  return { i: bi, t };
+}
+
+// ================= VERBINDUNG (öffentlicher HiveMQ-Server, funktioniert in jedem Netz) =================
+const BROKER = 'wss://broker.hivemq.com:8884/mqtt';
+const ROOMS = 'dkspiel-ischan/r7/';
+let roomKey = null, roomTopic = '';
+const T = (code, sub) => ROOMS + roomTopic + '/' + sub;   // der Raum-Code selbst steht nie auf dem Server
+
+// ---------- Verschlüsselung: Schlüssel und Kanal-Name werden aus dem Raum-Code berechnet ----------
+const enc = new TextEncoder();
+async function deriveRoom(code){
+  const base = await crypto.subtle.importKey('raw', enc.encode(code), 'PBKDF2', false, ['deriveBits']);
+  const bits = new Uint8Array(await crypto.subtle.deriveBits({ name:'PBKDF2', salt: enc.encode('dkspiel-ischan-v7'), iterations:150000, hash:'SHA-256' }, base, 512));
+  roomKey = await crypto.subtle.importKey('raw', bits.slice(0,32), 'AES-GCM', false, ['encrypt','decrypt']);
+  roomTopic = Array.from(bits.slice(32,48), b => b.toString(16).padStart(2,'0')).join('');
+}
+function b64(u8){ let s=''; for (let i=0;i<u8.length;i+=8192) s += String.fromCharCode.apply(null, u8.subarray(i,i+8192)); return btoa(s); }
+function unb64(str){ const s = atob(str), u = new Uint8Array(s.length); for (let i=0;i<s.length;i++) u[i] = s.charCodeAt(i); return u; }
+async function seal(obj){
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name:'AES-GCM', iv }, roomKey, enc.encode(JSON.stringify(obj))));
+  const all = new Uint8Array(12 + ct.length); all.set(iv); all.set(ct, 12);
+  return b64(all);
+}
+async function unseal(str){
+  try {
+    const all = unb64(str);
+    const pt = await crypto.subtle.decrypt({ name:'AES-GCM', iv: all.slice(0,12) }, roomKey, all.slice(12));
+    const m = JSON.parse(dec.decode(pt));
+    return m && typeof m === 'object' ? m : null;
+  } catch(e) { return null; }   // falscher Schlüssel oder Müll -> ignorieren
+}
+let sendQ = Promise.resolve(), recvQ = Promise.resolve();   // Reihenfolge der Nachrichten beibehalten
+function onMsg(handler){
+  return (topic, buf) => {
+    const str = typeof buf === 'string' ? buf : dec.decode(buf);
+    recvQ = recvQ.then(async () => { const m = await unseal(str); if (m) handler(m); }).catch(() => {});
+  };
+}
+let mq = null, myId = '', joinCode = '', closed = false, hostLast = 0;
+try { myId = sessionStorage.getItem('dk-id') || ''; } catch(e) {}
+if (!/^[a-z0-9]{8,24}$/.test(myId)) { myId = (Math.random().toString(36).slice(2,10) + Date.now().toString(36)).slice(0,16); try { sessionStorage.setItem('dk-id', myId); } catch(e) {} }
+const dec = new TextDecoder();
+if (!window.crypto || !crypto.subtle) document.addEventListener('DOMContentLoaded', () => lobbyError('Dein Browser unterstützt keine Verschlüsselung – bitte Chrome, Safari oder Firefox aktuell verwenden.'));
+
+function connectBroker(will){
+  return new Promise((resolve, reject) => {
+    if (!window.mqtt) return reject('lib');
+    const c = mqtt.connect(BROKER, { clientId: 'dk_' + myId + '_' + Math.random().toString(36).slice(2,6), clean:true,
+      connectTimeout:8000, reconnectPeriod:2000, keepalive:20, will });
+    let done = false;
+    const fail = e => { if (!done) { done = true; try { c.end(true); } catch(_) {} reject(e); } };
+    c.on('connect', () => { if (!done) { done = true; resolve(c); } netState(true); });
+    c.on('offline', () => netState(false));
+    c.on('error', fail);
+    setTimeout(() => fail('timeout'), 10000);
+  });
+}
+function pub(topic, obj){
+  if (!mq) return;
+  sendQ = sendQ.then(async () => { const payload = await seal(obj); if (mq) mq.publish(topic, payload, { qos:1 }); }).catch(() => {});
+}
+function netState(ok){
+  if (!roomCode || closed) return;
+  const e = $('gameErr');
+  if (!ok) e.textContent = 'Verbindung unterbrochen – verbinde neu …';
+  else if (e.textContent.startsWith('Verbindung unterbrochen')) e.textContent = '';
+}
+
+// ---------- HOST ----------
+const guests = {};   // Platz -> { id, last }   (Bots sind keine Gäste)
+async function hostGame(){
+  $('hostBtn').disabled = $('joinBtn').disabled = true;
+  $('lobbyErr').textContent = 'Raum wird erstellt …';
+  const code = randomCode();
+  try {
+    await deriveRoom(code);
+    mq = await connectBroker({ topic: T(code,'host'), payload: await seal({ t:'closed' }), qos:1, retain:false });
+  }
+  catch(e) { return lobbyError('Keine Verbindung zum Spielserver. Bitte Internetverbindung prüfen und nochmal versuchen.'); }
+  mq.subscribe(T(code,'up'), { qos:1 });
+  mq.on('message', onMsg(m => {
+    if (typeof m.from === 'string' && /^[a-z0-9]{8,24}$/.test(m.from)) hostHandle(m.from, m);
+  }));
+  isHost = true; roomCode = code; mySeat = 0;
+  S = freshState(); S.seats[0] = newPlayer(myName());
+  enterGame(); broadcast();
+  setInterval(hostTick, 3000);
+}
+function randomCode(){ const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let c=''; for(let i=0;i<6;i++) c+=A[Math.floor(Math.random()*A.length)]; return c; }
+function seatOf(id){ const k = Object.keys(guests).find(s => guests[s].id === id); return k === undefined ? -1 : +k; }
+function toGuest(id, m){ pub(T(roomCode, 'to/' + id), m); }
+
+function hostHandle(id, msg){
+  const seat = seatOf(id);
+  if (seat >= 0) guests[seat].last = Date.now();
+  if (msg.t === 'hello') {
+    if (msg.v !== VERSION) return toGuest(id, { t:'version', v:VERSION });
+    if (seat >= 0) return broadcast();                 // schon drin (z. B. nach Neu-Laden) -> Stand schicken
+    const free = S.seats.findIndex(x => !x);
+    if (free < 0) return toGuest(id, { t:'full' });
+    guests[free] = { id, last: Date.now() };
+    const waiting = S.phase === 'play';
+    S.seats[free] = newPlayer(cleanName(msg.name), waiting);
+    log({ sys: waiting ? `👋 ${S.seats[free].name} ist da und spielt ab der nächsten Runde mit.` : `👋 ${S.seats[free].name} ist beigetreten.` });
+    return broadcast();
+  }
+  if (seat < 0) { if (msg.t === 'ping') toGuest(id, { t:'gone' }); return; }
+  if (msg.t === 'bye')  return hostDrop(seat);
+  if (msg.t === 'draw') doDraw(seat);
+  if (msg.t === 'play') doPlay(seat, msg.i, msg.target, msg.all3 === true);
+  if (msg.t === 'pass') doPass(seat);
+}
+function hostTick(){
+  const now = Date.now();
+  Object.keys(guests).forEach(s => { if (now - guests[s].last > 45000) hostDrop(+s); });   // 45 s nichts gehört -> weg
+  Object.values(guests).forEach(g => toGuest(g.id, { t:'ping' }));
+}
+function hostDrop(i){
+  if (!guests[i]) return;
+  const id = guests[i].id;
+  delete guests[i];
+  const p = S.seats[i];
+  const wasTurn = effTurn(S) === i;
+  S.hands[i] = [];
+  log({ sys:`🚪 ${p.name} hat den Raum verlassen.` });
+  S.seats[i] = null;
+  if (S.phase === 'play' && !checkWin() && wasTurn) advance(i);
+  toGuest(id, { t:'gone' });
+  broadcast();
+}
+
+// Jeder bekommt nur seine eigenen Karten zu sehen – von den anderen nur die Anzahl (und ob sie einen Pascal 🎭 haben).
+// Fallen (🐻) bleiben geheim, und die Freddy-Karte erscheint für die anderen als eine andere Karte.
+function viewFor(seat){
+  const f = S.freddy, disguise = f && f.by !== seat;
+  return {
+    phase:S.phase, turn:S.turn, dir:S.dir, rittner:Math.max(0, S.rittnerUntil - S.turnNo), pattern:Math.max(0, S.patternUntil - S.turnNo), btc:S.btc || 0, step:S.step, drew:S.drew, winner:S.winner, round:S.round, zh:S.zh, bg:S.bg, leutrim:S.leutrim.length,
+    link: S.link ? { a:S.link.a, b:S.link.b } : null,
+    pile: S.pile.map(c => disguise && c === FREDDY ? f.fake : c),
+    log: S.log.map(e => {
+      const { fid, ...rest } = e;
+      return disguise && fid === f.id ? { name:rest.name, c: f.fake, res:'…' } : rest;
+    }),
+    seats: S.seats.map((p,i) => {
+      if (!p) return null;
+      const { trap, pending, luckUntil, taskUntil, ...pub } = p;
+      pub.luck = luckUntil > S.turnNo; pub.tasks = taskUntil > S.turnNo;
+      const pascal = i === seat ? 0 : S.hands[i].filter(x => cardOf(x) === PASCAL && !isHidden(x)).length;
+      const clown = S.hands[i].some(x => cardOf(x) === CLOWN && !isHidden(x));
+      return { ...pub, cards: S.hands[i].length, pascal, clown };
+    }),
+    deckCount:S.deck.length, hand: (S.hands[seat] || []).map(shownTo),   // geheime Karten (-1) kennt nicht mal der Besitzer
+  };
+}
+function broadcast(){
+  Object.entries(guests).forEach(([seat, g]) => toGuest(g.id, { t:'state', v:VERSION, state: viewFor(+seat), you:+seat }));
+  V = viewFor(mySeat);
+  render();
+  scheduleBot();
+}
+
+// ---------- GAST ----------
+async function joinGame(){
+  const code = $('codeIn').value.trim().toUpperCase();
+  if (!/^[A-Z0-9]{6}$/.test(code)) return lobbyError('Bitte den 6-stelligen Raum-Code eingeben.');
+  $('hostBtn').disabled = $('joinBtn').disabled = true;
+  $('lobbyErr').textContent = 'Verbinde …';
+  try {
+    await deriveRoom(code);
+    mq = await connectBroker({ topic: T(code,'up'), payload: await seal({ t:'bye', from:myId }), qos:1, retain:false });
+  }
+  catch(e) { return lobbyError('Keine Verbindung zum Spielserver. Bitte Internetverbindung prüfen und nochmal versuchen.'); }
+  joinCode = code;
+  const notFound = setTimeout(() => { if (!roomCode) { lobbyError('Kein Raum mit diesem Code gefunden.'); try { mq.end(true); } catch(e) {} mq = null; } }, 9000);
+  const stop = msg => { clearTimeout(notFound); lobbyError(msg); try { mq.end(true); } catch(e) {} mq = null; };
+  mq.on('message', onMsg(msg => {
+    if (closed) return;
+    hostLast = Date.now();
+    if (msg.t === 'closed') return roomClosed('Der Raum wurde geschlossen (der Ersteller ist weg).');
+    if (msg.t === 'gone' && roomCode) return roomClosed('Du warst zu lange weg und wurdest aus dem Raum genommen. Lade die Seite neu und tritt nochmal bei.');
+    if (msg.t === 'version') return stop('⚠️ Du und der Raum-Ersteller habt verschiedene Versionen des Spiels. Bitte ALLE die Seite neu laden (Link mit ?v=' + VERSION + ' am Ende öffnen) und einen neuen Raum erstellen.');
+    if (msg.t === 'full') return stop(`Der Raum ist schon voll (${N} Spieler).`);
+    if (msg.t === 'state') {
+      clearTimeout(notFound);
+      if (msg.v !== VERSION) return stop('⚠️ Der Raum-Ersteller hat eine andere Version des Spiels. Bitte alle die Seite neu laden.');
+      V = sanitize(msg.state); mySeat = intIn(msg.you, 0, N-1, -1);
+      if (!roomCode) { roomCode = code; enterGame(); startGuestTick(); } else render();
+    }
+  }));
+  mq.subscribe([T(code, 'to/' + myId), T(code, 'host')], { qos:1 }, () => pub(T(code,'up'), { t:'hello', from:myId, name: myName(), v:VERSION }));
+}
+function startGuestTick(){
+  hostLast = Date.now();
+  setInterval(() => {
+    if (closed) return;
+    pub(T(joinCode,'up'), { t:'ping', from:myId });
+    if (Date.now() - hostLast > 40000) roomClosed('Der Raum wurde geschlossen (der Ersteller ist weg).');
+  }, 4000);
+}
+function roomClosed(msg){
+  if (closed) return;
+  closed = true;
+  $('gameErr').textContent = msg;
+  disableAll();
+}
+// Handy war im Hintergrund -> beim Zurückkommen sofort melden
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible' || !mq || closed) return;
+  if (!isHost && roomCode) { hostLast = Date.now(); pub(T(joinCode,'up'), { t:'hello', from:myId, name: myName(), v:VERSION }); }
+});
+window.addEventListener('pagehide', () => {
+  if (!mq || !roomCode) return;
+  if (isHost) pub(T(roomCode,'host'), { t:'closed' });
+  else pub(T(joinCode,'up'), { t:'bye', from:myId });
+});
+
+function sanitize(d){
+  const s = { phase:'lobby', seats:Array(N).fill(null), turn:0, dir:1, zh:0, link:null, bg:-1, leutrim:0, step:'draw', drew:false, pile:[], log:[], winner:null, round:0, deckCount:0, hand:[] };
+  if (!d || typeof d !== 'object') return s;
+  if (['lobby','play','over'].includes(d.phase)) s.phase = d.phase;
+  if (Array.isArray(d.seats)) s.seats = SEATS.map(i => {
+    const x = d.seats[i]; if (!x || typeof x !== 'object') return null;
+    const hearts = intIn(x.hearts, 0, MAX_HEARTS, 0);
+    return { name: cleanName(x.name), hearts, infected: intIn(x.infected, 0, hearts, 0), shield: !!x.shield, reflect: !!x.reflect, skip: !!x.skip, fur: !!x.fur,
+             color: ['blue','orange'].includes(x.color) ? x.color : null, clown: !!x.clown, luck: !!x.luck, tasks: !!x.tasks, bot: !!x.bot, beer: intIn(x.beer, 0, 99, 0), pascal: intIn(x.pascal, 0, HAND_MAX, 0), cards: intIn(x.cards, 0, HAND_MAX, 0), alive: !!x.alive, waiting: !!x.waiting };
+  });
+  s.turn = intIn(d.turn, 0, N-1, 0);
+  s.dir = d.dir === -1 ? -1 : 1;
+  s.zh = intIn(d.zh, 0, 99, 0);
+  s.rittner = intIn(d.rittner, 0, 999, 0); s.pattern = intIn(d.pattern, 0, 999, 0); s.btc = intIn(d.btc, 0, 99, 0);
+  s.bg = intIn(d.bg, -1, BG_COUNT-1, -1);
+  s.leutrim = intIn(d.leutrim, 0, 99, 0);
+  s.link = d.link && Number.isInteger(d.link.a) && Number.isInteger(d.link.b) ? { a: intIn(d.link.a,0,N-1,0), b: intIn(d.link.b,0,N-1,0) } : null;
+  if (['draw','act'].includes(d.step)) s.step = d.step;
+  s.drew = !!d.drew;
+  if (Array.isArray(d.pile)) s.pile = d.pile.filter(isCard).slice(-4);
+  if (Array.isArray(d.log)) s.log = d.log.slice(-40).map(e =>
+      e && typeof e.sys==='string' ? { sys:e.sys.slice(0,200) }
+    : e && isCard(e.c) ? { name: cleanName(e.name), c:e.c, hid: !!e.hid, combo: !!e.combo, dis: isCard(e.dis) ? e.dis : undefined,
+                          target: typeof e.target==='string' ? cleanName(e.target) : null, res: typeof e.res==='string' ? e.res.slice(0,300) : '' } : null).filter(Boolean);
+  s.winner = typeof d.winner==='string' ? cleanName(d.winner) : null;
+  s.round = typeof d.round==='number' ? d.round : 0;
+  s.deckCount = intIn(d.deckCount, 0, 999, 0);
+  if (Array.isArray(d.hand)) s.hand = d.hand.filter(c => c === -1 || isCard(c)).slice(0, HAND_MAX);
+  return s;
+}
+
+// ================= ANZEIGE =================
+function enterGame(){
+  $('lobby').classList.add('hidden');
+  $('game').classList.remove('hidden');
+  $('codeOut').textContent = roomCode;
+  try { history.replaceState(null, '', location.pathname + location.search + '#' + roomCode); } catch(e) {}
+  render();
+}
+function disableAll(){ ['drawBtn','playBtn','passBtn','startBtn','botBtn'].forEach(id => $(id).disabled = true); }
+
+const ZH = () => !!(V && V.zh > 0);
+const L = (de, zh) => ZH() ? zh : de;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const cname = c => `${CARDS[c].emoji} „${ZH() ? CARDS[c].zh : CARDS[c].text}“`;
+
+function cardEl(c){
+  const d = document.createElement('div');
+  if (c === -1) {                                  // geheime Karte
+    d.className = 'card flipped mystery';
+    d.innerHTML = '<div class="inner"><div class="face back"></div><div class="face front"><div class="emoji">❓</div><div class="txt">???</div><div class="eff"></div></div></div>';
+    d.querySelector('.eff').textContent = L('Geheime Karte – erst nach dem Ausspielen siehst du, was es war', '秘密牌');
+    return d;
+  }
+  d.className = 'card flipped' + (c === TASK ? ' task' : '');
+  d.innerHTML = `<div class="inner"><div class="face back"></div><div class="face front"><div class="emoji"></div><div class="txt"></div><div class="eff"></div></div></div>`;
+  d.querySelector('.emoji').textContent = CARDS[c].emoji;
+  d.querySelector('.txt').textContent = ZH() ? CARDS[c].zh : CARDS[c].text;
+  if (!ZH() && CARDS[c].text.split(' ').some(w => w.length > 12)) d.querySelector('.txt').classList.add('long');
+  d.querySelector('.eff').textContent = ZH() ? CARDS[c].zeff : CARDS[c].eff;
+  return d;
+}
+function heartsStr(p){
+  if (!p.alive) return p.waiting ? '⏳' : '🖤'.repeat(MAX_HEARTS);
+  const red = p.hearts - p.infected;
+  return (p.color === 'blue' ? '💙' : p.color === 'orange' ? '🧡' : '❤️').repeat(Math.max(red,0)) + '💚'.repeat(p.infected) + '🖤'.repeat(MAX_HEARTS - p.hearts)
+       + (p.shield ? '🛡️' : '') + (p.reflect ? '😼' : '');
+}
+function vEffTurn(v){
+  if (v.phase !== 'play') return -1;
+  for (let k=0;k<N;k++){ const i=(v.turn+k)%N; const p=v.seats[i]; if (p && p.alive) return i; }
+  return -1;
+}
+let curBg = -2;
+function setBg(i){
+  if (i === curBg) return;
+  curBg = i;
+  const el = $('bgimg');
+  if (i < 0) { el.classList.add('hidden'); el.style.backgroundImage = ''; document.body.classList.remove('hasbg'); }
+  else { el.style.backgroundImage = `url(img/bg${i}.jpg)`; el.classList.remove('hidden'); document.body.classList.add('hasbg'); }
+}
+
+let sel = null, lastHand = [], lastRound = 0;
+function render(){
+  if (!V) return;
+  const t = vEffTurn(V);
+  const players = V.seats.filter(Boolean).length;
+  const myTurn = t >= 0 && t === mySeat;
+  setBg(V.bg);
+
+  // Gewinner-Banner
+  const ban = $('banner');
+  if (V.phase === 'over') { ban.classList.remove('hidden'); const lastSys = (V.log.at(-1) || {}).sys || ''; ban.textContent = V.winner ? `🏆 ${V.winner} gewinnt!` : lastSys.startsWith('🍫') ? '🍫 Schokokuss! Niemand gewinnt.' : '🤝 Unentschieden!'; }
+  else ban.classList.add('hidden');
+
+  // Spieler (6 Plätze)
+  const box = $('players'); box.innerHTML = '';
+  for (let i=0;i<N;i++){
+    const p = V.seats[i], el = document.createElement('div');
+    el.className = 'player' + (i===t ? ' active' : '') + (i===mySeat ? ' me' : '') + (!p ? ' free' : '')
+      + (p && V.phase!=='lobby' && !p.alive ? ' out' : '') + (p && V.phase==='over' && p.alive ? ' winner' : '');
+    const nm = document.createElement('div'); nm.className='nm'; nm.textContent = p ? (p.bot ? '🤖 ' : '') + p.name + (i===0 ? ' 👑' : '') : L('Platz frei', '空位');
+    const hs = document.createElement('div'); hs.className='hearts'; hs.textContent = p ? heartsStr(p) : '';
+    const st = document.createElement('div'); st.className='cnt';
+    const info = [];
+    if (!p) info.push(L('wartet …', '等待中…'));
+    else if (p.waiting) info.push(L('spielt nächste Runde mit', '下一轮加入'));
+    else if (V.phase==='play' && !p.alive) info.push(L('raus', '出局'));
+    else {
+      if (V.phase==='play') info.push(`🃏 ${p.cards}`);
+      if (p.pascal) info.push('🎭'.repeat(p.pascal));
+      if (p.clown) info.push('🤡');
+      if (p.luck) info.push('🍀');
+      if (p.tasks) info.push('📄');
+      if (p.infected) info.push(L('infiziert!', '感染了！'));
+      if (p.skip) info.push(L('😴 setzt aus', '😴 跳过'));
+      if (p.fur) info.push('🦊');
+      if (p.beer) info.push('🍺'.repeat(Math.min(p.beer, 5)) + (p.beer > 5 ? '…' : ''));
+      if (V.link && (V.link.a === i || V.link.b === i)) { const o = V.seats[V.link.a === i ? V.link.b : V.link.a]; if (o) info.push('🔗 ' + o.name); }
+    }
+    st.textContent = info.join(' · ');
+    el.append(nm, hs, st);
+    if (p && p.bot && isHost && V.phase !== 'play') {
+      const x = document.createElement('button'); x.className = 'kick'; x.textContent = '✕'; x.title = 'Bot entfernen';
+      x.onclick = () => removeBot(i); el.appendChild(x);
+    }
+    box.appendChild(el);
+  }
+
+  // Eigene Hand
+  const hand = V.hand;
+  if (V.round !== lastRound) { lastHand = []; lastRound = V.round; }
+  if (hand.join() !== lastHand.join()) sel = null;
+  if (sel !== null && sel >= hand.length) sel = null;
+  if (myTurn && V.step === 'act' && hand.length === 1 && sel === null) sel = 0;   // nur eine Karte -> gleich auswählen
+  const isNew = hand.length > lastHand.length && hand.slice(0, lastHand.length).join() === lastHand.join();
+  const h = $('hand'); h.innerHTML = '';
+  hand.forEach((c, i) => {
+    const el = cardEl(c);
+    if (i === sel) el.classList.add('sel');
+    if (isNew && i >= lastHand.length) el.classList.add('new');
+    el.onclick = () => { sel = (sel === i ? null : i); render(); };
+    h.appendChild(el);
+  });
+  for (let i = hand.length; i < HAND_MAX; i++) { const e = document.createElement('div'); e.className = 'empty slotfree'; e.textContent = L('frei', '空'); h.appendChild(e); }
+  lastHand = hand.slice();
+  const me = V.seats[mySeat];
+  $('handLbl').textContent = me && me.alive && V.phase === 'play' ? L(`Deine Karten (${hand.length}/${HAND_MAX}) – nur du siehst sie · antippen zum Auswählen`, `你的牌 (${hand.length}/${HAND_MAX}) – 点击选择`) : L('Deine Karten', '你的牌');
+
+  // Ablage
+  const pile = $('pile'); pile.innerHTML='';
+  if (!V.pile.length) pile.innerHTML = '<div class="empty">Leer</div>';
+  V.pile.forEach((c,i) => { const el = cardEl(c); el.style.transform = `rotate(${(i - V.pile.length + 1)*(NARROW ? 3 : 5) + ((c*13+i*7)%3-1)}deg)`; pile.appendChild(el); });
+
+  // Protokoll
+  const log = $('log'); log.innerHTML='';
+  if (!V.log.length) log.innerHTML = '<div style="color:var(--dim)">Noch nichts passiert.</div>';
+  V.log.slice().reverse().forEach(e => {
+    const d = document.createElement('div');
+    if (e.sys) { d.style.color = 'var(--dim)'; d.textContent = e.sys; }
+    else {
+      const n = document.createElement('span'); n.className='n'; n.textContent = e.name; d.appendChild(n);
+      let what;
+      if (e.combo) what = ` ${L('spielt', '出了')} 🦗🦗🦗`;
+      else if (e.hid) what = ` ${L('spielt eine geheime Karte ❓ – es war', '出了一张秘密牌 ❓ –')} ${cname(e.c)}`;
+      else if (e.dis !== undefined) what = ` ${L('spielt', '出了')} ${cname(e.dis)} – ${L('Überraschung, es war', '惊喜！其实是')} ${cname(e.c)}`;
+      else what = ` ${L('spielt', '出了')} ${cname(e.c)}`;
+      d.append(`${what} → ${e.res}`);
+    }
+    log.appendChild(d);
+  });
+
+  // Status + Knöpfe
+  const grill3 = hand.length === 3 && hand.every(c => c === GRILL);
+  $('deckCount').textContent = V.deckCount;
+  $('deckLbl').textContent = L('Stapel', '牌堆'); $('pileLbl').textContent = L('Zuletzt gespielt', '最近出的牌');
+  $('drawBtn').textContent = L('Karte ziehen', '抽牌'); $('playBtn').textContent = L('Ausspielen', '出牌'); $('passBtn').textContent = L('Zug beenden', '结束回合');
+  const zi = $('zhInfo'); zi.classList.toggle('hidden', !ZH() || V.phase !== 'play');
+  zi.textContent = `🀄 Herr Günther: Das Spiel ist auf Chinesisch – noch ${V.zh} ${V.zh === 1 ? 'Zug' : 'Züge'}`;
+  const st = $('status'); st.innerHTML = '';
+  if (V.phase === 'lobby') {
+    st.textContent = players < 2 ? (isHost ? 'Warte auf Mitspieler … schick ihnen den Code oder Link – oder füg Bots hinzu!' : 'Warte auf Mitspieler …')
+      : isHost ? `${players} Spieler da – starte das Spiel, wenn alle bereit sind.` : `${players} Spieler da – warte, bis ${V.seats[0] ? V.seats[0].name : 'der Ersteller'} das Spiel startet.`;
+  } else if (V.phase === 'over') {
+    st.textContent = isHost ? 'Runde vorbei – starte eine neue Runde!' : 'Runde vorbei – warte auf die nächste Runde.';
+  } else if (t >= 0) {
+    if (myTurn) {
+      if (V.step === 'draw') st.innerHTML = L('<b>Du</b> bist dran – zieh eine Karte!', '<b>轮到你了</b>——抽一张牌！');
+      else {
+        const nextName = esc(V.seats[vNextAlive(V, mySeat)].name);
+        let txt = V.drew ? L('<b>Du</b> bist dran – spiel eine Karte aus oder beende den Zug.', '<b>轮到你了</b>——出一张牌或结束回合。') : L('<b>Deine Hand ist voll</b> – du musst eine Karte ausspielen!', '<b>你的手牌满了</b>——必须出一张牌！');
+        const sc = sel !== null ? hand[sel] : null;
+        if (sc === -1) txt += L(' <br>Geheime Karte – du weißt erst nach dem Ausspielen, was sie macht!', ' <br>秘密牌！');
+        else if (sc !== null && (CARDS[sc].target || sc === 12 || sc === FREDDY)) txt += L(` <br>Die Karte trifft <b>${nextName}</b>.`, ` <br>这张牌会打中<b>${nextName}</b>。`);
+        else if (sc !== null && CARDS[sc].choose) txt += L(' <br><b>Wen soll es treffen?</b> Tipp unten auf einen Namen.', ' <br><b>选谁？</b>点下面的名字。');
+        if (sc !== null && sc !== -1 && CARDS[sc].options) txt += L(' <br><b>Was machst du mit dem Hund?</b>', ' <br><b>你怎么处理这只狗？</b>');
+        if (sc === GRILL && grill3) txt += L(' <br>🦗🦗🦗 Du hast 3 Grillenberger – spiel alle auf einmal!', ' <br>🦗🦗🦗 三张！');
+        if (sel === null) txt += L(' <br>Tipp eine Karte an.', ' <br>点一张牌。');
+        st.innerHTML = txt;
+      }
+    } else {
+      const b = document.createElement('b'); b.textContent = V.seats[t].name;
+      st.append(b, V.step === 'draw' ? L(' ist dran.', ' 的回合。') : L(' überlegt …', ' 正在思考……'));
+      if (me && !me.alive) st.append(me.waiting ? L(' (Du spielst ab der nächsten Runde mit.)', '（你下一轮加入。）') : L(' (Du bist raus und schaust zu.)', '（你出局了。）'));
+    }
+  }
+  // Wahl-Knöpfe (Ziel / Grillenberger-Kombo)
+  const sc = sel !== null ? hand[sel] : null;
+  let choosing = myTurn && V.step === 'act' && sc !== null && sc !== -1 && CARDS[sc].choose;
+  const eligibleV = c => V.seats.map((p, i) => i).filter(i => V.seats[i] && V.seats[i].alive && i !== mySeat && (c !== WANU || V.seats[i].cards > 0));
+  if (choosing && !eligibleV(sc).length) choosing = false;          // z. B. Wanunanu, aber keiner hat Karten
+  const comboShow = myTurn && V.step === 'act' && grill3 && sc === GRILL;
+  const optShow = myTurn && V.step === 'act' && sc !== null && sc !== -1 && !!CARDS[sc].options;
+  $('playBtn').disabled = !(myTurn && V.step === 'act' && sel !== null) || choosing || optShow;
+  const tb = $('targets'); tb.innerHTML = '';
+  tb.classList.toggle('hidden', !choosing && !comboShow && !optShow);
+  if (optShow) CARDS[sc].options.forEach((o, k) => {
+    const b = document.createElement('button'); b.textContent = o;
+    b.onclick = () => { const i = sel; sel = null; act('play', i, k); };
+    tb.appendChild(b);
+  });
+  if (comboShow) {
+    const b = document.createElement('button'); b.textContent = L('🦗🦗🦗 Alle 3 spielen', '🦗🦗🦗 三张一起出');
+    b.onclick = () => { sel = null; act('play', 0, undefined, true); };
+    tb.appendChild(b);
+  }
+  if (choosing) eligibleV(sc).forEach(i => {
+    const b = document.createElement('button'); b.textContent = `${CARDS[sc].emoji} ${V.seats[i].name}`;
+    b.onclick = () => { const k = sel; sel = null; act('play', k, i); };
+    tb.appendChild(b);
+  });
+  const dirEl = $('dirInfo');
+  dirEl.classList.toggle('hidden', V.phase !== 'play');
+  dirEl.textContent = (V.dir === 1 ? L('↻ Spielrichtung: im Uhrzeigersinn', '↻ 方向：顺时针') : L('↺ Spielrichtung: gegen den Uhrzeigersinn', '↺ 方向：逆时针'))
+    + (V.leutrim ? ` · 👻 ${L('Leutrim ist verschwunden …', '洛伊特里姆消失了……')}` : '')
+    + (V.rittner ? ` · 👨‍💼 Rittner: noch ${V.rittner} Züge` : '')
+    + (V.pattern ? ` · 🌀 noch ${V.pattern} Züge` : '')
+    + (V.btc ? ` · 🪙 ${V.btc}/20` : '');
+
+  $('drawBtn').disabled = !(myTurn && V.step === 'draw');
+  $('passBtn').disabled = !(myTurn && V.step === 'act' && V.drew);
+  const inGame = V.phase === 'play';
+  ['drawBtn','playBtn','passBtn'].forEach(id => $(id).classList.toggle('hidden', !inGame && isHost));
+  const sb = $('startBtn');
+  sb.classList.toggle('hidden', !isHost || inGame);
+  sb.textContent = V.phase === 'over' ? 'Neue Runde' : 'Spiel starten';
+  sb.disabled = players < 2;
+  const bb = $('botBtn');
+  bb.classList.toggle('hidden', !isHost || inGame);
+  bb.disabled = players >= N;
+}
+function vNextAlive(v, from){ const dir = v.dir === -1 ? -1 : 1; for (let k=1;k<=N;k++){ const i=((from+k*dir)%N+N)%N; if (v.seats[i] && v.seats[i].alive) return i; } return from; }
+
+// ================= STEUERUNG =================
+function act(type, i, target, all3){
+  if (!V) return;
+  if (isHost) { if (type==='draw') doDraw(mySeat); else if (type==='play') doPlay(mySeat, i, target, !!all3); else doPass(mySeat); }
+  else if (mq && !closed) pub(T(joinCode,'up'), { t:type, i, target, all3: !!all3, from:myId });
+}
+$('hostBtn').addEventListener('click', () => { if (!$('nameIn').value.trim()) return lobbyError('Bitte gib zuerst deinen Namen ein.'); hostGame(); });
+$('joinBtn').addEventListener('click', () => { if (!$('nameIn').value.trim()) return lobbyError('Bitte gib zuerst deinen Namen ein.'); joinGame(); });
+$('codeIn').addEventListener('keydown', e => { if (e.key==='Enter') $('joinBtn').click(); });
+$('deck').addEventListener('click', () => act('draw'));
+$('drawBtn').addEventListener('click', () => act('draw'));
+$('playBtn').addEventListener('click', () => { if (sel !== null) { const i = sel; sel = null; act('play', i); } });
+$('passBtn').addEventListener('click', () => act('pass'));
+$('startBtn').addEventListener('click', () => { if (isHost) startGame(); });
+$('botBtn').addEventListener('click', () => addBot());
+$('copyBtn').addEventListener('click', async () => {
+  const link = location.href.split('#')[0] + '#' + roomCode;
+  try { await navigator.clipboard.writeText(link); $('copyBtn').textContent = '✓ Kopiert!'; }
+  catch(e) { $('copyBtn').textContent = link; }
+  setTimeout(() => $('copyBtn').textContent = 'Einladungslink kopieren', 2500);
+});
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || !V) return;
+  if ((e.key === ' ' || e.key === 'Enter') && V.step === 'draw') { e.preventDefault(); act('draw'); }
+});
+window.addEventListener('beforeunload', e => { if (isHost && Object.keys(guests).length) { e.preventDefault(); e.returnValue = ''; } });
+// ================= KARTEN-LORE (Galerie mit drehbarer 3D-Karte) =================
+const LORE = {
+  0:'Trifft den nächsten Spieler: Eins seiner Herzen wird grün 💚. Bei seinem übernächsten Zug ist es weg – außer er heilt sich vorher.',
+  1:'Wirkt auf dich: Ein grünes Herz wird wieder rot. Bist du nicht infiziert, bekommst du 1 ❤️ zurück (höchstens 3).',
+  2:'Der nächste Spieler verliert sofort 1 ❤️. Schild 🛡️ blockt, Meowskulls 😼 wirft es zurück.',
+  3:'ALLE verlieren 1 ❤️ – du auch! Wer ein Schild hat, blockt. Wer Meowskulls hat, bleibt verschont und du verlierst ein Herz extra.',
+  4:'Du bekommst ein Schild 🛡️. Es blockt den nächsten Angriff auf dich und ist dann weg. Mehr als eins geht nicht.',
+  5:'Alle Handkarten werden zufällig getauscht. Jeder bekommt die Karten von jemand anderem.',
+  6:'Alle Spieler legen ihre gesammelten Karten zurück auf den Stapel. Danach wird neu gemischt.',
+  7:'Du wählst einen Spieler – er verliert 1 ❤️.',
+  8:'Du wählst einen Spieler – er muss seine nächste Runde aussetzen 😴.',
+  9:'Heilt ALLE Spieler: Grünes Herz wird rot, sonst +1 ❤️.',
+  10:'Die Spielrichtung dreht sich um. Direkt danach heilt ein 🥙 Dönerspieß sogar um 3 ❤️.',
+  11:'Alle sterben. Niemand gewinnt. Liegt nicht im Stapel – kommt nur mit 0,01 % Chance beim Ziehen.',
+  12:'Die nächste Karte, die der nächste Spieler zieht, bleibt geheim ❓ – sogar für ihn selbst.',
+  13:'Alle Handkarten werden eingesammelt, gemischt und verdeckt ❓ neu verteilt. Jeder behält gleich viele.',
+  14:'Das ganze Spiel ist 3 Runden lang auf Chinesisch 🀄.',
+  15:'Der nächste Angriff auf dich fliegt zurück zu dem, der ihn gespielt hat 😼.',
+  16:'Macht gar nichts … außer du hast 3 davon auf der Hand: Dann spielst du alle auf einmal und der nächste Spieler verliert 3 ❤️. Vorsicht: Ein 🎭 Pascal kann sich als Grillenberger tarnen!',
+  17:'Eine getarnte Falle: Legt der nächste Spieler in seinem Zug eine Karte, verliert er 1 ❤️. Bis dahin sehen die anderen statt Freddy eine zufällige andere Karte.',
+  18:'Du wählst einen Spieler. Bis zu deinem nächsten Zug bekommt ihr beide jeden Schaden und jede Heilung ab, die einer von euch bekommt 🔗.',
+  19:'Is this game modded?! Der Hintergrund ändert sich für alle.',
+  20:'Tarnt sich auf deiner Hand als andere Karte (70 % Grillenberger). Die anderen sehen 🎭 an deinem Spielerfeld – du nicht. Gespielt löst er den Effekt einer zufälligen anderen Karte aus.',
+  21:'Sieht auf deiner Hand aus wie 🥙 Dönerspieß. Gespielt werden ALLE deine Herzen infiziert 💚 – schnell heilen!',
+  22:'Heilt alle um 1 ❤️. Wurde direkt davor 🔄 Leon gespielt, heilt er alle um 3 ❤️.',
+  23:'Du wählst einen Spieler und klaust ihm eine zufällige Karte 🦝.',
+  24:'Du wählst einen Spieler: Er verliert 1 ❤️ UND setzt eine Runde aus 💥.',
+  25:'Du ziehst zwei Karten (höchstens bis 3 auf der Hand).',
+  26:'Alle deine Herzen werden blau 💙. Sonst passiert nichts.',
+  27:'Verschwindet für 1 bis 20 Züge 👻. Taucht er wieder auf, klaut er einem zufälligen Spieler eine Karte für dich. Hat der keine, wird er stattdessen geheilt.',
+  28:'50/50: Entweder bekommen alle 2 ❤️ – oder der RCD explodiert und alle verlieren 2 ❤️ ⚡.',
+  29:'Füllt die Hände aller Spieler mit 📄 Prüfungsaufgaben auf. Mit 20 % Chance bekommt einer stattdessen die 🔑 Lösung.',
+  30:'Hat keinen Effekt. Kommt nur über 📝 Herr Barthel ins Spiel.',
+  31:'Wer sie spielt, wird alle 📄 Prüfungsaufgaben los und bekommt 💍 „Ich hasse meine Frau“. Kommt nur über 📝 Herr Barthel ins Spiel.',
+  32:'Die Chancen aller Karten werden zufällig neu verteilt und der Stapel neu gemischt – bis jemand gewinnt 🤓.',
+  33:'Die ersten 3 Bier pro Runde geben je 1 ❤️. Ab dem 4. Bier verlierst du jedes Mal 1 ❤️ 🥴.',
+  34:'Deine Herzen werden orange 🧡 (ändert nichts). Außerdem bleibt bei ALLEN Spielern die nächste gezogene Karte geheim ❓.',
+  35:'Heiße Kartoffel! Bei jedem Zugwechsel: 5 % Chance, dass der Besitzer sofort rausfliegt (der Clown verschwindet mit ihm). Spielst du ihn aus, bekommt ihn der nächste Spieler – bei voller Hand ersetzt er eine Karte.',
+  36:'Der nächste Spieler bekommt zufällig einen dieser Effekte: 💀 −1 ❤️, 💍 Heilung, 🛡️ Schild oder 🦠 Infektion.',
+  37:'20 Runden lang kommen Heilkarten (💍 😽 🥙 🍺) doppelt so oft – aber auch 🚬 Zigaretten-Pausen.',
+  38:'Wird nicht gespielt: Wer sie zieht, verliert sofort 1 ❤️ und sein Zug ist vorbei.',
+  39:'Jeder bekommt einen 🥙 Dönerspieß – oder Kevins Pizzabrötchen 🍕, das genauso aussieht. Mit 50 % Chance wird außerdem deine Hand mit 🪙 Bitcoin aufgefüllt.',
+  40:'Hat keinen Effekt … Wurden von allen zusammen 20 Bitcoin gespielt, bekommt jeder 1 ❤️. Der Zähler steht oben im Spiel.',
+  41:'Spielst du ihn, wählst du: 🔫 Erschieß den Hund – nichts passiert. Oder 🤠 Sandro zähmt ihn – 80 %: du wirst infiziert, 20 %: du wirst geheilt.',
+  42:'Versteckt eine 💥 Mine irgendwo in den nächsten 30 Karten des Stapels. Wer sie zieht, verliert 1 ❤️.',
+  43:'Die versteckte Mine. Kommt nur durch 💣 Miene? in den Stapel. Schild blockt sie, Meowskulls wirft sie zurück zu dem, der sie gelegt hat.',
+  44:'50/50 für 3 Runden: Entweder ziehst du viel öfter gute Karten 🍀 – oder deine Hand ist voller 📄 Prüfungsaufgaben (auch deine jetzigen Karten werden ersetzt).',
+  45:'3 Runden lang kommen 👾 Modded und 🪙 Bitcoin viel öfter – und werden sofort gespielt, wenn jemand sie zieht.',
+  46:'Du bekommst Birkichts Geheimplan 🗺️ – verdeckt, du kannst ihn nicht lesen.',
+  47:'Löst zwei zufällige Effekte anderer Karten auf einmal aus. Kommt nur durch 📜 Birkichts Pläne.',
+};
+const KIND = c => [2,3,7,24,16,17,0,42,43].includes(c) ? 'atk' : [1,9,22,33,31,37].includes(c) ? 'heal' : [4,15].includes(c) ? 'def' : [11,35,21,38].includes(c) ? 'evil' : 'chaos';
+const KIND_NAME = { atk:'Angriff', heal:'Heilung', def:'Schutz', evil:'Gefährlich', chaos:'Chaos' };
+let loreIdx = 0, rx = -8, ry = -20, vx = 0, vy = 0, dragging = false, lastX = 0, lastY = 0, idle = 0, loreRaf = null;
+
+function cardFace(c){
+  const k = KIND(c);
+  return `<div class="f3in ${k}"><div class="f3kind">${KIND_NAME[k]}</div><div class="f3emoji">${CARDS[c].emoji}</div>`
+       + `<div class="f3name">${esc(CARDS[c].text)}</div><div class="f3eff">${esc(CARDS[c].eff)}</div><div class="f3no">#${String(c+1).padStart(2,'0')}</div><div class="shine"></div></div>`;
+}
+function openLore(){
+  const g = $('loreGrid'); g.innerHTML = '';
+  CARDS.forEach((card, c) => {
+    const b = document.createElement('button'); b.className = 'lore-item ' + KIND(c);
+    b.innerHTML = `<span class="li-emoji">${card.emoji}</span><span class="li-name"></span>`;
+    b.querySelector('.li-name').textContent = card.text;
+    b.onclick = () => showLoreCard(c);
+    g.appendChild(b);
+  });
+  $('lore').classList.remove('hidden'); $('loreDetail').classList.add('hidden'); $('loreGrid').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+function closeLore(){ $('lore').classList.add('hidden'); document.body.style.overflow = ''; cancelAnimationFrame(loreRaf); loreRaf = null; }
+function showLoreCard(c){
+  loreIdx = c;
+  $('loreGrid').classList.add('hidden'); $('loreDetail').classList.remove('hidden');
+  $('front3').innerHTML = cardFace(c);
+  $('loreName').textContent = `${CARDS[c].emoji} ${CARDS[c].text}`;
+  $('loreEff').textContent = LORE[c] || CARDS[c].eff;
+  const total = DECK_MIX.reduce((a, b) => a + b, 0), n = DECK_MIX[c];
+  $('loreStats').textContent = c === SCHOKO ? 'Chance: 0,01 % pro gezogener Karte'
+    : n ? `Im Stapel: ${n} von ${total} Karten · ${(100*n/total).toFixed(1).replace('.', ',')} % pro Zug`
+    : c === MINE ? 'Kommt nur durch 💣 Miene? in den Stapel' : c === PLAN ? 'Kommt nur durch 📜 Birkichts Pläne' : c === TASK || c === SOLUTION ? 'Kommt nur durch 📝 Herr Barthel' : 'Liegt nicht im Stapel';
+  $('loreKind').textContent = KIND_NAME[KIND(c)]; $('loreKind').className = 'lore-kind ' + KIND(c);
+  rx = -8; ry = -200; vx = 0; vy = 0; idle = 0;                        // kleine Einflug-Drehung
+  if (!loreRaf) loreRaf = requestAnimationFrame(spin);
+  $('loreDetail').scrollTop = 0;
+}
+function spin(){
+  if (!dragging) {
+    ry += vy; rx += vx; vy *= 0.95; vx *= 0.92;
+    if (Math.abs(vy) < 0.05 && ++idle > 40) ry += 0.35;              // langsam von selbst drehen
+    rx += (-8 - rx) * 0.03;                                           // zurück zur Grundneigung
+  }
+  rx = Math.max(-60, Math.min(60, rx));
+  $('card3d').style.transform = `rotateX(${rx}deg) rotateY(${ry}deg)`;
+  const a = ((ry % 360) + 360) % 360;
+  $('card3d').style.setProperty('--shine', `${(a / 360) * 200 - 50}%`);
+  loreRaf = requestAnimationFrame(spin);
+}
+(function initLore(){
+  const st = $('stage');
+  st.addEventListener('pointerdown', e => { dragging = true; lastX = e.clientX; lastY = e.clientY; vx = vy = 0; idle = 0; st.setPointerCapture(e.pointerId); });
+  st.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const dx = e.clientX - lastX, dy = e.clientY - lastY; lastX = e.clientX; lastY = e.clientY;
+    ry += dx * 0.6; rx -= dy * 0.4; vy = dx * 0.6; vx = -dy * 0.4;
+  });
+  const up = () => { dragging = false; idle = 0; };
+  st.addEventListener('pointerup', up); st.addEventListener('pointercancel', up);
+  // Kartendicke: ein paar Schichten zwischen Vorder- und Rückseite
+  const c3 = $('card3d');
+  for (let i = -3; i <= 3; i++) { const e = document.createElement('div'); e.className = 'edge3'; e.style.transform = `translateZ(${i * 0.7}px)`; c3.appendChild(e); }
+  $('loreBtn').onclick = openLore; $('loreBtn2').onclick = openLore;
+  $('loreClose').onclick = closeLore;
+  $('loreBack').onclick = () => { $('loreDetail').classList.add('hidden'); $('loreGrid').classList.remove('hidden'); };
+  $('lorePrev').onclick = () => showLoreCard((loreIdx - 1 + CARDS.length) % CARDS.length);
+  $('loreNext').onclick = () => showLoreCard((loreIdx + 1) % CARDS.length);
+  document.addEventListener('keydown', e => {
+    if ($('lore').classList.contains('hidden')) return;
+    if (e.key === 'Escape') closeLore();
+    if (!$('loreDetail').classList.contains('hidden')) { if (e.key === 'ArrowLeft') $('lorePrev').click(); if (e.key === 'ArrowRight') $('loreNext').click(); }
+  }, true);
+})();
+// ================= BOOSTER-PACKS (nur zum Spaß – keine Auswirkung aufs Spiel) =================
+const PACKS = [
+  { name:'Angriffs-Pack', kind:'atk',   c1:'#ff6b6b', c2:'#a61e1e' },
+  { name:'Heil-Pack',     kind:'heal',  c1:'#6ee28f', c2:'#1f7a3d' },
+  { name:'Schutz-Pack',   kind:'def',   c1:'#6fb3ff', c2:'#1f4f8f' },
+  { name:'Chaos-Pack',    kind:'chaos', c1:'#c48bff', c2:'#5b2a99' },
+  { name:'Gefahren-Pack', kind:'evil',  c1:'#666',    c2:'#111'    },
+  { name:'Gold-Pack',     kind:'gold',  c1:'#ffe27a', c2:'#b8860b' },
+];
+const RARITY = c => c === SCHOKO ? 'mythic' : DECK_MIX[c] === 0 ? 'legendary' : DECK_MIX[c] <= 4 ? 'rare' : DECK_MIX[c] <= 8 ? 'uncommon' : 'common';
+const RAR_W = { common:40, uncommon:28, rare:16, legendary:5, mythic:0.4 };
+const RAR_NAME = { common:'Gewöhnlich', uncommon:'Ungewöhnlich', rare:'Selten', legendary:'Legendär', mythic:'MYTHISCH' };
+let lastPack = 0;
+function loadCollection(){ try { return new Set(JSON.parse(localStorage.getItem('dk-collection') || '[]')); } catch(e) { return new Set(); } }
+function saveCollection(set){ try { localStorage.setItem('dk-collection', JSON.stringify([...set])); } catch(e) {} }
+function pullCard(pack, minRare){
+  const order = ['common','uncommon','rare','legendary','mythic'];
+  const ws = CARDS.map((_, c) => {
+    const r = RARITY(c);
+    if (minRare && order.indexOf(r) < order.indexOf(minRare)) return 0;
+    let w = RAR_W[r];
+    if (pack.kind === 'gold') w *= r === 'common' ? 0.3 : r === 'uncommon' ? 1 : 3;
+    else if (KIND(c) === pack.kind) w *= 4;
+    return w;
+  });
+  let t = Math.random() * ws.reduce((a, b) => a + b, 0), c = 0;
+  while (c < ws.length - 1 && t >= ws[c]) { t -= ws[c]; c++; }
+  return c;
+}
+function updateCollection(){
+  const n = loadCollection().size;
+  $('collection').textContent = `📚 Deine Sammlung: ${n} von ${CARDS.length} Karten entdeckt` + (n === CARDS.length ? ' – ALLE! 🏆' : '');
+}
+function openBooster(){
+  const box = $('packChoice'); box.innerHTML = '';
+  PACKS.forEach((pk, i) => {
+    const b = document.createElement('button'); b.className = 'pack small';
+    b.style.setProperty('--c1', pk.c1); b.style.setProperty('--c2', pk.c2);
+    b.innerHTML = `<span class="pk-star">✦</span><span class="pk-name"></span><span class="pk-sub">5 Karten</span>`;
+    b.querySelector('.pk-name').textContent = pk.name;
+    b.onclick = () => showPack(i);
+    box.appendChild(b);
+  });
+  $('booster').classList.remove('hidden'); box.classList.remove('hidden'); $('packOpen').classList.add('hidden');
+  updateCollection();
+  document.body.style.overflow = 'hidden';
+}
+function closeBooster(){ $('booster').classList.add('hidden'); document.body.style.overflow = ''; }
+function showPack(i){
+  lastPack = i;
+  const pk = PACKS[i], art = $('packArt');
+  $('packChoice').classList.add('hidden'); $('packOpen').classList.remove('hidden');
+  art.className = 'pack big shake'; art.style.setProperty('--c1', pk.c1); art.style.setProperty('--c2', pk.c2);
+  art.innerHTML = `<span class="pk-star">✦</span><span class="pk-name"></span><span class="pk-sub">Antippen zum Aufreißen!</span>`;
+  art.querySelector('.pk-name').textContent = pk.name;
+  art.classList.remove('hidden');
+  $('packCards').innerHTML = ''; $('packBtns').classList.add('hidden'); $('packHint').textContent = '';
+  art.onclick = () => tearPack(i);
+}
+function tearPack(i){
+  const pk = PACKS[i], art = $('packArt');
+  art.onclick = null; art.classList.add('tear');
+  const cards = [0,1,2,3].map(() => pullCard(pk));
+  cards.push(pullCard(pk, pk.kind === 'gold' ? 'rare' : 'uncommon'));   // letzte Karte: mindestens ungewöhnlich (Gold: selten)
+  const coll = loadCollection();
+  setTimeout(() => {
+    art.classList.add('hidden');
+    const box = $('packCards'); box.innerHTML = '';
+    let flipped = 0;
+    cards.forEach((c, k) => {
+      const r = RARITY(c), isNew = !coll.has(c);
+      const w = document.createElement('div'); w.className = `bwrap r-${r}`; w.style.animationDelay = `${k * 0.12}s`;
+      const el = cardEl(c); el.classList.remove('flipped');
+      const tag = document.createElement('div'); tag.className = 'rtag'; tag.textContent = RAR_NAME[r];
+      w.append(el, tag);
+      if (isNew) { const nb = document.createElement('div'); nb.className = 'newbadge'; nb.textContent = 'NEU!'; w.appendChild(nb); }
+      w.onclick = () => {
+        if (el.classList.contains('flipped')) return showLoreFromPack(c);
+        el.classList.add('flipped'); w.classList.add('open'); coll.add(c); saveCollection(coll); updateCollection();
+        if (++flipped === cards.length) { $('packBtns').classList.remove('hidden'); $('packHint').textContent = 'Tipp auf eine Karte, um sie in der Karten-Lore anzusehen.'; }
+      };
+      box.appendChild(w);
+    });
+    $('packHint').textContent = 'Tipp die Karten an, um sie aufzudecken!';
+  }, 550);
+}
+function showLoreFromPack(c){ closeBooster(); openLore(); showLoreCard(c); }
+(function initBooster(){
+  $('boosterBtn').onclick = openBooster;
+  $('boosterClose').onclick = closeBooster;
+  $('packAgain').onclick = () => showPack(lastPack);
+  $('packBack').onclick = openBooster;
+  document.querySelectorAll('.ver').forEach(e => e.textContent = VERSION);
+})();
+</script>
+</body>
+</html>
