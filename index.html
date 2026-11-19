@@ -97,6 +97,17 @@
   .dirinfo { font-size:12px; color:var(--dim); margin:-6px 0 6px; }
   .card.mystery .front { background:#2d2440; color:#f4f1e8; border-color:#6c5a99; }
   .card.mystery .front .eff { color:#cbbfe8; }
+  .cfg-box { max-width:760px; margin:0 auto 14px; text-align:center; }
+  .modebtns { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
+  .modebtn { background:rgba(255,255,255,.1); color:var(--text); padding:10px 16px; font-size:15px; }
+  .modebtn.on { background:var(--gold); color:#2a2000; }
+  .mode-info { color:var(--dim); font-size:14px; margin:10px auto 0; max-width:560px; line-height:1.45; }
+  .cfg-row { display:flex; gap:10px; align-items:center; justify-content:center; flex-wrap:wrap; margin-bottom:6px; }
+  .cfg-row button { padding:7px 12px; font-size:13px; }
+  .deckitem { position:relative; }
+  .deckitem .li-state { font-size:11px; font-weight:800; color:#2e7d32; }
+  .deckitem.off { opacity:.45; filter:grayscale(.8); } .deckitem.off .li-state { color:#b71c1c; }
+  .deckitem.locked { opacity:.25; cursor:not-allowed; }
   .menuver { text-align:center; color:var(--dim); font-size:12px; margin-top:4px; }
   .booster-sub { text-align:center; color:var(--dim); font-size:13px; margin:-4px auto 16px; max-width:600px; }
   #booster .lore-stats { text-align:center; margin:16px 0 30px; }
@@ -238,6 +249,18 @@
 </head>
 <body>
   <div id="bgimg" class="hidden"></div>
+  <div id="deckcfg" class="lore hidden">
+    <div class="lore-head"><b>🎮 Spielmodus & Deck</b><button id="deckClose" class="sec">✕</button></div>
+    <div class="cfg-box">
+      <div id="modeBtns" class="modebtns"></div>
+      <div id="modeInfo" class="mode-info"></div>
+    </div>
+    <div id="deckGridWrap">
+      <div class="cfg-row"><span id="deckCount2" class="lore-stats"></span><button id="deckAllOn" class="sec">Alle rein</button><button id="deckAllOff" class="sec">Alle raus</button></div>
+      <div class="booster-sub">Tipp eine Karte an, um sie aus dem Deck zu nehmen oder wieder reinzulegen.</div>
+      <div id="deckGrid" class="lore-grid"></div>
+    </div>
+  </div>
   <div id="booster" class="lore hidden">
     <div class="lore-head"><b>🎁 Booster-Packs</b><button id="boosterClose" class="sec">✕</button></div>
     <div class="booster-sub">Nur zum Spaß – die Karten haben keine Auswirkung aufs Spiel. Jedes Pack: 5 zufällige Karten.</div>
@@ -322,12 +345,14 @@
       <button id="playBtn" disabled>Ausspielen</button>
       <button id="passBtn" class="sec" disabled>Zug beenden</button>
       <button id="botBtn" class="sec hidden">🤖 Bot hinzufügen</button>
+      <button id="deckBtn" class="sec hidden">🎮 Modus & Deck</button>
       <button id="startBtn" class="hidden">Spiel starten</button>
     </div>
     <div class="log" id="log"></div>
     <button id="loreBtn2" class="sec lorebtn2">📖 Karten-Lore</button>
     <details class="rules" open>
       <summary>Regeln</summary>
+      <b>Spielmodi</b> (wählt der Raum-Ersteller unter „🎮 Modus &amp; Deck“): Classic (nur Karten #1–#21), Normal (alle), Chaos (lila Chaos-Karten 3× so oft), Russian Roulette (1 ❤️, 1 Kartenplatz, nur Prüfungsaufgaben und eine Mine). Dort kann er auch einzelne Karten aus dem Deck nehmen. 🤡 Clownchan liegt nur einmal im Stapel.<br>
       Bis zu <b>6 Spieler</b>. Der Raum-Ersteller kann vor dem Start <b>🤖 Bots</b> hinzufügen (✕ entfernt sie wieder).<br>
       Jeder startet mit <b>3 ❤️</b> und darf bis zu <b>3 Karten</b> auf der Hand haben – nur du siehst deine Karten.<br>
       <b>Dein Zug:</b> Zieh eine Karte. Dann spielst du <b>eine</b> Karte aus <b>oder</b> beendest den Zug und hebst deine Karten für später auf.
@@ -368,14 +393,15 @@
       🤡 <b>Clownchan</b> – heiße Kartoffel! Bei jedem Zugwechsel hat jeder, der Clownchan auf der Hand hat, eine 5-%-Chance (1 von 20), sofort rauszufliegen. Clownchan verschwindet dann mit ihm. Spielst du ihn aus, bekommt ihn der nächste Spieler. Hat der schon 3 Karten, ersetzt Clownchan eine davon. Alle sehen am Spielerfeld 🤡, wer ihn gerade hat.<br>
       🧃 <b>Macjucie</b> – der nächste Spieler bekommt zufällig einen dieser Effekte: 💀 (−1 ❤️), 💍 (Heilung), 🛡️ (Schild) oder 🦠 (Infektion).<br>
       👨‍💼 <b>Herr Rittner</b> – 20 Runden lang kommen Heilkarten (💍 😽 🥙 🍺) doppelt so oft, aber auch 🚬 Zigaretten-Pausen.<br>
-      🚬 <b>Zigaretten Pause</b> – wird nicht gespielt: Wer sie zieht, verliert sofort 1 ❤️ und sein Zug ist vorbei.<br>
+      🚬 <b>Zigaretten Pause</b> – liegt nur im Stapel, solange Herr Rittner wirkt. Wer sie zieht, verliert sofort 1 ❤️ und sein Zug ist vorbei.<br>
       📈 <b>Schneeball System</b> – jeder bekommt einen 🥙 Dönerspieß, der aber auch ein 🍕 Kevins Pizzabrötchen sein kann. Mit 50 % wird deine Hand mit 🪙 Bitcoin aufgefüllt.<br>
-      🪙 <b>Bitcoin</b> – kein Effekt. Wurden von allen zusammen 20 gespielt, bekommt jeder 1 ❤️ (Zähler steht oben).<br>
+      🪙 <b>Bitcoin</b> – kommt erst in den Stapel, wenn jemand 📈 Schneeball System spielt. Kein Effekt. Wurden von allen zusammen 20 gespielt, bekommt jeder 1 ❤️ (Zähler steht oben).<br>
       🐕 <b>Das ist ein Hund</b> – du wählst: 🔫 Erschieß den Hund (nichts passiert) oder 🤠 Sandro zähmt ihn (80 % infiziert, 20 % geheilt).<br>
       💣 <b>Miene?</b> – versteckt eine 💥 Mine in den nächsten 30 Karten. Wer sie zieht, verliert 1 ❤️.<br>
       🎰 <b>Let it ride</b> – 50/50 für 3 Runden: viel öfter gute Karten 🍀 oder Hand voller 📄 Prüfungsaufgaben.<br>
       🌀 <b>Pussy Pattern</b> – 3 Runden lang kommen 👾 Modded und 🪙 Bitcoin viel öfter und werden beim Ziehen sofort gespielt.<br>
       📜 <b>Birkichts Pläne</b> – du bekommst einen verdeckten 🗺️ Geheimplan. Gespielt löst er zwei zufällige Effekte anderer Karten aus.<br>
+      🗣️ <b>Grigori</b> – streitet mit allen, die blaue Herzen 💙 haben: Jeder bekommt zufällig 👾 Modded auf die Hand oder eine 🚬 Zigaretten-Pause (−1 ❤️, aussetzen).<br>
       🔗 <b>Goonnectet</b> – du wählst einen Spieler. Bis zu deinem nächsten Zug bekommt ihr beide jeden Schaden und jede Heilung ab, die einer von euch bekommt.<br>
       Angriffe sind 💀, 🦠, 😱, 👨‍🏫, 😴, 🦗🦗🦗, 🐻, 🦝 und 🪑. Die Reihenfolge: zuerst Meowskulls 😼, dann Schild 🛡️.<br><br>
       Ohne Herzen bist du raus und schaust bis zum Ende der Runde zu. <b>Wer als Letztes noch Herzen hat, gewinnt.</b>
@@ -433,16 +459,22 @@ const CARDS = [
   { emoji:"🌀", text:"Pussy Pattern",        eff:"3 Runden: Modded & Bitcoin kommen öfter – und werden sofort gespielt", zh:"猫猫图案", zeff:"3轮：改版和比特币更常出现并立即打出" },
   { emoji:"📜", text:"Birkichts Pläne",      eff:"Du bekommst einen geheimen Plan, den du nicht lesen kannst",  zh:"比尔基希特的计划", zeff:"你得到一张看不懂的秘密计划" },
   { emoji:"🗺️", text:"Birkichts Geheimplan", eff:"Zwei zufällige Effekte anderer Karten auf einmal",            zh:"秘密计划",     zeff:"两个随机效果同时触发" },
+  { emoji:"🗣️", text:"Grigori",              eff:"Streitet mit allen, die blaue Herzen 💙 haben: 👾 oder 🚬",   zh:"格里戈里",     zeff:"和蓝心玩家吵架：👾或🚬" },
 ];
 // Anzahl je Karte im Stapel (gleiche Reihenfolge wie oben). 0 = liegt nicht im Stapel.
 const BASE_MIX = [6, 6, 8, 3, 5, 3, 3, 4, 3, 2, 3, 0, 3,  2, 2, 3, 7, 3, 3,  2, 3, 2, 3, 3, 3, 3, 2, 2, 3, 2, 0, 0,  2, 3,  2, 2, 3,  2, 2, 2, 3, 2, 2, 0, 2, 2, 2, 0];
 const DECK_MIX = BASE_MIX.map(n => n * 2);           // alles doppelt
+BASE_MIX.push(2); DECK_MIX.push(4);                  // 🗣️ Grigori
+DECK_MIX[35] = 1;                                    // 🤡 Clownchan nur einmal
+DECK_MIX[38] = 0;                                    // 🚬 nur während Herr Rittner
+DECK_MIX[40] = 0;                                    // 🪙 erst nach Schneeball System
 const SCHOKO = 11, SCHOKO_CHANCE = 0.0001, GRILL = 16, LEON = 10, FREDDY = 17;
 const SMARTER = 32, BEER = 33, GINGER = 34, CLOWN = 35, MACJ = 36, CLOWN_CHANCE = 0.05;
+const GRIGORI = 48;
 const RITTNER = 37, CIG = 38, SNOWBALL = 39, BTC = 40, DOG = 41, MINECARD = 42, MINE = 43, RIDE = 44, PATTERN = 45, PLANS = 46, PLAN = 47;
 const HEAL_CARDS = [1, 9, 22, 33], GOOD_CARDS = [1, 4, 9, 15, 22, 33];
 const MODDED = 19, PASCAL = 20, KEVIN = 21, DONER = 22, WANU = 23, CHAIR = 24, TORKE = 25, SPECK = 26, LEUTRIM = 27, RCD = 28, BARTHEL = 29, TASK = 30, SOLUTION = 31;
-const BG_COUNT = 31;                                 // Hintergrundbilder img/bg0.jpg … bg30.jpg
+const BG_COUNT = 34;                                 // Hintergrundbilder img/bg0.jpg … bg33.jpg
 // Handkarten als Zahl: Karte + 100 (geheim) + 1000·(Tarnkarte+1)
 const HIDDEN = 100, DIS = 1000;
 const cardOf = x => x % HIDDEN;
@@ -455,13 +487,35 @@ const N = 6;                                         // Plätze im Raum
 const SEATS = [...Array(N).keys()];
 const HAND_MAX = 3;
 const MAX_HEARTS = 3;
-const VERSION = 15;   // Spiel-Protokoll: bei jeder Regeländerung erhöhen – alte und neue Version können nicht zusammen spielen
-const VERSION_LABEL = '15.2';   // angezeigte Version (Bugfixes ändern nur diese Zahl)
+const MODES = { classic:'Classic', normal:'Normal', chaos:'Chaos', roulette:'Russian Roulette' };
+const curMode = () => (typeof S !== 'undefined' && S && S.cfg) ? S.cfg.mode : (typeof V !== 'undefined' && V && V.mode) || 'normal';
+const handMax = () => curMode() === 'roulette' ? 1 : HAND_MAX;
+const maxHearts = () => curMode() === 'roulette' ? 1 : MAX_HEARTS;
+const VERSION = 16;   // Spiel-Protokoll: bei jeder Regeländerung erhöhen – alte und neue Version können nicht zusammen spielen
+const VERSION_LABEL = '16';   // angezeigte Version (Bugfixes ändern nur diese Zahl)
 const $ = id => document.getElementById(id);
 
 const shuffle = a => { for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
 const pick = a => a[Math.floor(Math.random()*a.length)];
-const newDeck = (mix = (typeof S !== 'undefined' && S && S.mix) || DECK_MIX) => shuffle(mix.flatMap((n,i) => Array(n).fill(i)));
+// welche Karten wie oft im Stapel liegen – abhängig von Spielmodus, Deck-Auswahl des Hosts und Extra-Karten (Bitcoin, Zigaretten)
+function buildMix(){
+  const st = (typeof S !== 'undefined' && S) || null;
+  const cfg = (st && st.cfg) || { mode:'normal', off:[] };
+  if (cfg.mode === 'roulette') {
+    const m = CARDS.map(() => 0);
+    m[TASK] = 5 * Math.max(2, st ? aliveSeats(st).length : 2); m[MINE] = 1;
+    return m;
+  }
+  return DECK_MIX.map((n, k) => {
+    if (cfg.off.includes(k)) n = 0;
+    if (cfg.mode === 'classic' && k > 20) n = 0;
+    if (cfg.mode === 'chaos' && KIND(k) === 'chaos') n *= 3;
+    if (st && st.extra && st.extra[k] && !cfg.off.includes(k)) n += st.extra[k];
+    return n;
+  });
+}
+const newDeck = (mix = ((typeof S !== 'undefined' && S && S.mix) || buildMix())) => shuffle(mix.flatMap((n,i) => Array(n).fill(i)));
+const allowed = k => buildMix()[k] > 0;
 const isCard = c => Number.isInteger(c) && c>=0 && c<CARDS.length;
 const cleanName = n => (typeof n==='string' ? n.trim().slice(0,14) : '') || 'Spieler';
 const intIn = (n, lo, hi, d) => Number.isInteger(n) && n>=lo && n<=hi ? n : d;
@@ -485,12 +539,12 @@ function myName(){
 function lobbyError(msg){ $('lobbyErr').textContent = msg; $('hostBtn').disabled = $('joinBtn').disabled = false; }
 
 // ================= HOST: Spiellogik =================
-const newPlayer = (name, waiting=false, bot=false) => ({ name, bot, hearts: waiting ? 0 : MAX_HEARTS, infected:0, pending:0, shield:false, reflect:false,
+const newPlayer = (name, waiting=false, bot=false) => ({ name, bot, hearts: waiting ? 0 : maxHearts(), infected:0, pending:0, shield:false, reflect:false,
   skip:false, fur:false, trap:false, color:null, beer:0, luckUntil:0, taskUntil:0, alive: !waiting, waiting });
 
 function freshState(){
   return { phase:'lobby', seats:Array(N).fill(null), hands:SEATS.map(() => []), deck:newDeck(), turn:0, turnNo:0, dir:1, step:'draw', drew:false,
-           pile:[], log:[], winner:null, round:Date.now(), zh:0, link:null, freddy:null, fid:0, bg:-1, leutrim:[], lastCard:-1, mix:null, rittnerUntil:0, patternUntil:0, btc:0 };
+           pile:[], log:[], winner:null, round:Date.now(), zh:0, link:null, freddy:null, fid:0, bg:-1, leutrim:[], lastCard:-1, mix:null, rittnerUntil:0, patternUntil:0, btc:0, extra:{}, cfg:{ mode:'normal', off:[] } };
 }
 function aliveSeats(st){ return SEATS.filter(i => st.seats[i] && st.seats[i].alive); }
 function effTurn(st){
@@ -526,9 +580,10 @@ function checkWin(){
 // ---- Karten geben (mit Tarnung für Pascal und Kevin, Geheimnis durch Furry Baddie) ----
 const PASCAL_LOOKS = CARDS.map((_, k) => k).filter(k => ![PASCAL, SCHOKO, TASK, SOLUTION, GRILL, CIG, MINE, PLAN].includes(k));
 const FX_POOL = PASCAL_LOOKS.filter(k => k !== CLOWN);              // Karten, deren Effekt Pascal & Geheimplan auslösen können
+const inMode = list => { const m = buildMix(), l = list.filter(k => m[k] > 0); return l.length ? l : list; };   // nur Karten aus dem aktuellen Deck
 function randArg(c, seat){ return CARDS[c].choose ? pickTarget(c, seat) : CARDS[c].options ? Math.floor(Math.random()*2) : -1; }
 function dressed(c){
-  if (c === PASCAL) return mk(c, false, Math.random() < 0.7 ? GRILL : pick(PASCAL_LOOKS));   // 70 % sieht aus wie Grillenberger
+  if (c === PASCAL) return mk(c, false, Math.random() < 0.7 ? GRILL : pick(inMode(PASCAL_LOOKS)));   // 70 % sieht aus wie Grillenberger
   if (c === KEVIN)  return mk(c, false, DONER);                                              // sieht aus wie Dönerspieß
   return c;
 }
@@ -541,7 +596,7 @@ function multFor(seat){
   return m;
 }
 function drawCard(seat = -1){
-  if (Math.random() < SCHOKO_CHANCE) return SCHOKO;   // 0,01 % – der legendäre Schokokuss
+  if (S.cfg.mode !== 'roulette' && Math.random() < SCHOKO_CHANCE) return SCHOKO;   // 0,01 % – der legendäre Schokokuss
   if (S.deck.length === 0) { S.deck = newDeck(); log({ sys:'🔄 Der Stapel wurde neu gemischt.' }); }
   // Chance-Faktoren: mit Wahrscheinlichkeit W/(n+W) eine "verstärkte" Karte aus dem Stapel holen – ergibt genau Anzahl·Faktor
   const m = multFor(seat), n = S.deck.length, idx = [], ws = []; let W = 0;
@@ -556,8 +611,8 @@ function drawCard(seat = -1){
 // gibt dem Spieler eine Karte. Rückgabe: true / 'task' / 'mine' / 'cig' / 'auto' / false (Hand voll)
 function giveDrawn(seat){
   const me = S.seats[seat];
-  if (me.taskUntil > S.turnNo) { if (S.hands[seat].length < HAND_MAX) S.hands[seat].push(TASK); return 'task'; }
-  if (S.hands[seat].length >= HAND_MAX) return false;
+  if (me.taskUntil > S.turnNo) { if (S.hands[seat].length < handMax()) S.hands[seat].push(TASK); return 'task'; }
+  if (S.hands[seat].length >= handMax()) return false;
   const raw = drawCard(seat), c = cardOf(raw);
   if (c === MINE) {                                   // 💥 versteckte Mine
     const by = Math.floor(raw / DIS) - 1, att = S.seats[by] || null;
@@ -591,7 +646,7 @@ function stealCard(fromSeat, toSeat){
   const h = S.hands[fromSeat];
   if (!h.length) return false;
   const x = h.splice(Math.floor(Math.random()*h.length), 1)[0];
-  if (S.hands[toSeat].length < HAND_MAX) S.hands[toSeat].push(x); else S.deck.unshift(cardOf(x));
+  if (S.hands[toSeat].length < handMax()) S.hands[toSeat].push(x); else S.deck.unshift(cardOf(x));
   return true;
 }
 
@@ -609,9 +664,13 @@ function beginTurn(i){
     else { rawHeal(vp); log({ sys:`👻 Leutrim taucht wieder auf! ${vp.name} hat keine Karten – dafür wird ${vp.name} geheilt ❤️` }); }
     return false;
   });
+  if (S.extra[CIG] && S.rittnerUntil <= S.turnNo) {                 // Rittner weg -> keine Zigaretten mehr
+    S.extra[CIG] = 0; S.deck = S.deck.filter(x => cardOf(x) !== CIG); if (S.mix) S.mix[CIG] = 0;
+    log({ sys:'👨‍💼 Herr Rittner ist weg – die Zigaretten-Pausen verschwinden aus dem Stapel.' });
+  }
   const tp = S.seats[i];
   if (tp && tp.taskUntil > S.turnNo) S.hands[i] = [TASK, TASK, TASK];   // 🎰 Pech gehabt: nur Prüfungsaufgaben
-  S.turn = i; S.drew = false; S.step = S.hands[i].length < HAND_MAX ? 'draw' : 'act';
+  S.turn = i; S.drew = false; S.step = S.hands[i].length < handMax() ? 'draw' : 'act';
   if (S.link && S.link.a === i) { log({ sys:`🔗 Die Verbindung von ${S.seats[S.link.a].name} und ${S.seats[S.link.b].name} ist vorbei.` }); S.link = null; }
   if (S.zh > 0 && --S.zh === 0) log({ sys:'🀄 Herr Günther ist weg – das Spiel ist wieder auf Deutsch.' });
 }
@@ -626,7 +685,7 @@ function hurt(p, n, share=true){
 }
 function rawHeal(p){
   if (p.infected > 0) { p.infected--; p.pending = Math.min(p.pending||0, p.infected); return 'heal'; }
-  if (p.hearts < MAX_HEARTS) { p.hearts++; return 'plus'; }
+  if (p.hearts < maxHearts()) { p.hearts++; return 'plus'; }
   return null;
 }
 function heal(p, share=true){
@@ -696,7 +755,8 @@ function startGame(){
   S.seats = S.seats.map(p => p ? newPlayer(p.name, false, !!p.bot) : null);
   S.hands = SEATS.map(() => []);
   S.mix = null;
-  Object.assign(S, { deck:newDeck(DECK_MIX), pile:[], winner:null, round:Date.now(), dir:1, zh:0, link:null, freddy:null, phase:'play', bg:-1, leutrim:[], lastCard:-1, turnNo:0, rittnerUntil:0, patternUntil:0, btc:0 });
+  S.extra = {}; S.mix = null;
+  Object.assign(S, { deck:newDeck(buildMix()), pile:[], winner:null, round:Date.now(), dir:1, zh:0, link:null, freddy:null, phase:'play', bg:-1, leutrim:[], lastCard:-1, turnNo:0, rittnerUntil:0, patternUntil:0, btc:0 });
   beginTurn(pick(aliveSeats(S)));
   log({ sys:`🃏 Neue Runde! ${S.seats[S.turn].name} fängt an.` });
   broadcast();
@@ -712,7 +772,7 @@ function doDraw(seat){
   broadcast();
 }
 function doPass(seat){
-  if (effTurn(S) !== seat || S.step !== 'act' || !S.drew) return;
+  if (effTurn(S) !== seat || S.step !== 'act' || !S.drew || (S.cfg.mode === 'roulette' && S.hands[seat].length)) return;
   const me = S.seats[seat];
   log({ sys:`✋ ${me.name} hebt die Karten auf und beendet den Zug.` });
   if (me.trap) { me.trap = false; S.freddy = null; log({ sys:`🐻 ${me.name} hat keine Karte gelegt – Freddys Falle ist harmlos verpufft.` }); }
@@ -798,7 +858,7 @@ function effect(seat, c, tgt){
     case GRILL: return { res:'macht … gar nichts 🦗' };
     case FREDDY: {                                 // 🐻 getarnte Falle – schnappt zu, wenn der Nächste eine Karte legt
       const p = nextP(); p.trap = true;
-      const fakes = CARDS.map((_, k) => k).filter(k => DECK_MIX[k] > 0 && k !== FREDDY);
+      const fakes = inMode(CARDS.map((_, k) => k).filter(k => DECK_MIX[k] > 0 && k !== FREDDY));
       const fid = ++S.fid;
       S.freddy = { by: seat, fake: pick(fakes), id: fid };
       return { target:p.name, fid, res:`${p.name} verliert 1 Herz, sobald er eine Karte legt 🐻` };
@@ -810,7 +870,7 @@ function effect(seat, c, tgt){
       return { res:'👾 Is this game modded?! Der Hintergrund hat sich verändert …' };
     }
     case PASCAL: {                                 // 🎭 zufälliger Effekt einer anderen Karte
-      const r = pick(FX_POOL);
+      const r = pick(inMode(FX_POOL));
       const inner = effect(seat, r, randArg(r, seat));
       return { ...inner, res:`🎭 Pascal! Zufallseffekt ${CARDS[r].emoji} „${CARDS[r].text}“ → ${inner.res}` };
     }
@@ -849,13 +909,13 @@ function effect(seat, c, tgt){
     }
     case BARTHEL: {
       const slots = [];
-      aliveSeats(S).forEach(i => { while (S.hands[i].length < HAND_MAX) { S.hands[i].push(TASK); slots.push([i, S.hands[i].length - 1]); } });
+      aliveSeats(S).forEach(i => { while (S.hands[i].length < handMax()) { S.hands[i].push(TASK); slots.push([i, S.hands[i].length - 1]); } });
       if (slots.length && Math.random() < 0.2) { const [i, k] = pick(slots); S.hands[i][k] = SOLUTION; }
       return { res: slots.length ? `füllt alle Hände mit Prüfungsaufgaben 📝 (${slots.length} Stück) – hat vielleicht jemand die Lösung?` : 'aber alle Hände sind schon voll' };
     }
     case TASK: return { res:'gibt eine Prüfungsaufgabe ab … nichts passiert 📄' };
     case SMARTER: {                                // 🤓 alle Chancen zufällig – bis jemand gewinnt
-      S.mix = DECK_MIX.map(n => n > 0 ? 1 + Math.floor(Math.random() * 16) : 0);
+      S.mix = buildMix().map(n => n > 0 ? 1 + Math.floor(Math.random() * 16) : 0);
       const mines = S.deck.filter(x => cardOf(x) === MINE);
       S.deck = newDeck(S.mix);
       mines.forEach(x => addMine(Math.floor(x / DIS) - 1));
@@ -869,7 +929,7 @@ function effect(seat, c, tgt){
     }
     case CLOWN: {                                  // 🤡 heiße Kartoffel weitergeben
       const ni = nextAliveSeat(S, seat), p = S.seats[ni], h = S.hands[ni];
-      if (h.length < HAND_MAX) { h.push(CLOWN); return { target:p.name, res:`gibt Clownchan 🤡 an ${p.name} weiter!` }; }
+      if (h.length < handMax()) { h.push(CLOWN); return { target:p.name, res:`gibt Clownchan 🤡 an ${p.name} weiter!` }; }
       const k = Math.floor(Math.random()*h.length), old = cardOf(h[k]);
       h[k] = CLOWN; if (old !== TASK && old !== SOLUTION && old !== CLOWN) S.deck.unshift(old);
       return { target:p.name, res:`gibt Clownchan 🤡 an ${p.name} weiter – ${p.name}s Hand war voll, eine Karte fliegt dafür raus!` };
@@ -885,15 +945,17 @@ function effect(seat, c, tgt){
     }
     case RITTNER: {
       S.rittnerUntil = S.turnNo + 20 * aliveSeats(S).length;
+      if (!S.extra[CIG]) { S.extra[CIG] = 4; for (let k = 0; k < 4; k++) S.deck.splice(Math.floor(Math.random() * (S.deck.length + 1)), 0, CIG); if (S.mix) S.mix[CIG] = 4; }
       return { res:'20 Runden lang kommen Heilkarten 💍😽🥙🍺 doppelt so oft – aber auch 🚬 Zigaretten-Pausen!' };
     }
     case CIG: { hurt(me, 1); return { res:`raucht eine 🚬 – −1 Herz (${H(Math.max(me.hearts,0))} übrig)` }; }
     case MINE: { hurt(me, 1); return { res:`tritt auf eine 💥 Mine – −1 Herz` }; }
     case SNOWBALL: {                               // 📈 alle bekommen Döner … oder Kevin
+      if (!S.extra[BTC]) { S.extra[BTC] = 6; for (let k = 0; k < 6; k++) S.deck.splice(Math.floor(Math.random() * (S.deck.length + 1)), 0, BTC); if (S.mix) S.mix[BTC] = 6; }
       let n = 0;
-      aliveSeats(S).forEach(i => { if (S.hands[i].length < HAND_MAX) { S.hands[i].push(Math.random() < 0.5 ? DONER : dressed(KEVIN)); n++; } });
+      aliveSeats(S).forEach(i => { if (S.hands[i].length < handMax()) { S.hands[i].push(Math.random() < 0.5 ? DONER : dressed(KEVIN)); n++; } });
       let btc = 0;
-      if (Math.random() < 0.5) while (S.hands[seat].length < HAND_MAX) { S.hands[seat].push(BTC); btc++; }
+      if (Math.random() < 0.5) while (S.hands[seat].length < handMax()) { S.hands[seat].push(BTC); btc++; }
       return { res:`${n ? `${n} Spieler bekommen einen 🥙 Dönerspieß (… oder doch 🍕?)` : 'aber alle Hände sind voll'}${btc ? ` – und ${me.name}s Hand wird mit ${btc} 🪙 Bitcoin gefüllt` : ''}` };
     }
     case BTC: {
@@ -915,18 +977,32 @@ function effect(seat, c, tgt){
     }
     case PATTERN: { S.patternUntil = S.turnNo + 3 * aliveSeats(S).length; return { res:'🌀 3 Runden lang kommen 👾 Modded und 🪙 Bitcoin viel öfter – und werden sofort gespielt!' }; }
     case PLANS: {
-      if (S.hands[seat].length >= HAND_MAX) return { res:'aber hat keinen Platz für den Plan' };
+      if (S.hands[seat].length >= handMax()) return { res:'aber hat keinen Platz für den Plan' };
       S.hands[seat].push(mk(PLAN, true));
       return { res:'bekommt Birkichts Geheimplan 🗺️❓ – keiner weiß, was drinsteht' };
     }
     case PLAN: {
       const parts = [];
       for (let k = 0; k < 2 && S.phase === 'play'; k++) {
-        const r = pick(FX_POOL), inner = effect(seat, r, randArg(r, seat));
+        const r = pick(inMode(FX_POOL)), inner = effect(seat, r, randArg(r, seat));
         parts.push(`${CARDS[r].emoji} ${CARDS[r].text} → ${inner.res}`);
         knockOutDead(); if (checkWin() || inner.end) break;
       }
       return { res:'🗺️ Der Plan: ' + parts.join(' | ') };
+    }
+    case GRIGORI: {                                // 🗣️ streitet mit allen mit blauen Herzen
+      const blues = aliveSeats(S).filter(i => S.seats[i].color === 'blue');
+      if (!blues.length) return { res:'🗣️ sucht Streit … aber niemand hat blaue Herzen 💙. Grigori zieht beleidigt ab.' };
+      const parts = blues.map(i => {
+        const p = S.seats[i];
+        if (Math.random() < 0.5) {
+          if (S.hands[i].length < handMax()) { S.hands[i].push(MODDED); return `${p.name} bekommt 👾 Is this game modded?`; }
+          return `${p.name}: 👾 ${effect(i, MODDED, -1).res}`;
+        }
+        hurt(p, 1); p.skip = true;
+        return `${p.name} kriegt eine 🚬 Zigaretten-Pause (−1 ❤️, setzt aus)`;
+      });
+      return { res:'🗣️ streitet mit allen mit blauen Herzen: ' + parts.join(' | ') };
     }
     case BEER: {                                   // 🍺 bis 3 Bier heilt, danach tut es weh
       me.beer = (me.beer || 0) + 1;
@@ -998,6 +1074,17 @@ function doPlay(seat, idx, tgt, all3){
 
 // ================= BOTS (laufen beim Raum-Ersteller) =================
 const BOT_NAMES = ['Bot Bernd', 'Bot Uschi', 'Bot Kalle', 'Bot Gisela', 'Bot Horst', 'Bot Erika'];
+function setMode(m){
+  if (!isHost || S.phase === 'play' || !MODES[m]) return;
+  S.cfg.mode = m; log({ sys:`🎮 Spielmodus: ${MODES[m]}` }); broadcast(); renderDeckCfg();
+}
+function toggleCard(k){ /* siehe unten */ toggleCardImpl(k); }
+function toggleCardImpl(k){
+  if (!isHost || S.phase === 'play') return;
+  const off = S.cfg.off, i = off.indexOf(k);
+  if (i >= 0) off.splice(i, 1); else off.push(k);
+  broadcast(); renderDeckCfg();
+}
 function addBot(){
   if (!isHost || S.phase === 'play') return;
   const free = S.seats.findIndex(x => !x);
@@ -1036,7 +1123,7 @@ function botDecide(seat){
   const me = S.seats[seat], seen = S.hands[seat].map(shownTo);
   if (seen.length === 3 && seen.every(c => c === GRILL)) return { all3:true };
   const others = aliveSeats(S).filter(i => i !== seat);
-  const red = me.hearts - me.infected, hurtMe = me.hearts < MAX_HEARTS || me.infected > 0;
+  const red = me.hearts - me.infected, hurtMe = me.hearts < maxHearts() || me.infected > 0;
   const score = c => {
     if (c === -1) return 1;
     if ([1, 9, 22, SOLUTION].includes(c)) return hurtMe ? 8 : 0;
@@ -1044,6 +1131,7 @@ function botDecide(seat){
     if (c === BTC) return (S.btc || 0) >= 19 ? 8 : -1;
     if (c === DOG) return 0;
     if (c === MINECARD) return 3;
+    if (c === GRIGORI) return 1;
     if ([RITTNER, SNOWBALL, PLANS].includes(c)) return 2;
     if (c === MACJ) return 3;
     if (c === BEER) return (me.beer || 0) >= 3 ? (me.hearts > 1 ? -2 : -20) : (hurtMe ? 8 : 0);
@@ -1062,14 +1150,17 @@ function botDecide(seat){
   };
   let best = -1e9, bi = 0;
   seen.forEach((c, i) => { const s = score(c) + Math.random(); if (s > best) { best = s; bi = i; } });
-  if (S.drew && best < 2) return { pass:true };
+  if (!seen.length) return { pass:true };                                         // nichts auf der Hand
+  if (Math.random() < 0.2) bi = Math.floor(Math.random() * seen.length);          // Fehlgriff: irgendeine Karte
+  const canPass = S.drew && S.cfg.mode !== 'roulette';
+  if (canPass && (best < 2 || Math.random() < 0.1) && Math.random() > 0.15) return { pass:true };
   const c = seen[bi];
   let t;
   if (c >= 0 && CARDS[c].options) t = 0;                            // Bot erschießt lieber den Hund
   if (c >= 0 && CARDS[c].choose) {
     const l = eligible(c, seat);
-    if (c === WANU) t = l.sort((a, b) => S.hands[b].length - S.hands[a].length)[0];
-    else t = l.sort((a, b) => (S.seats[a].hearts - S.seats[b].hearts) || (Math.random() - 0.5))[0];
+    if (c === WANU) t = Math.random() < 0.6 ? l.sort((a, b) => S.hands[b].length - S.hands[a].length)[0] : pick(l);
+    else t = Math.random() < 0.45 ? l.sort((a, b) => (S.seats[a].hearts - S.seats[b].hearts) || (Math.random() - 0.5))[0] : pick(l);   // mal den Schwächsten, mal irgendwen
   }
   return { i: bi, t };
 }
@@ -1209,7 +1300,7 @@ function hostDrop(i){
 function viewFor(seat){
   const f = S.freddy, disguise = f && f.by !== seat;
   return {
-    phase:S.phase, turn:S.turn, dir:S.dir, rittner:Math.max(0, S.rittnerUntil - S.turnNo), pattern:Math.max(0, S.patternUntil - S.turnNo), btc:S.btc || 0, step:S.step, drew:S.drew, winner:S.winner, round:S.round, zh:S.zh, bg:S.bg, leutrim:S.leutrim.length,
+    phase:S.phase, mode:S.cfg.mode, offCount:S.cfg.off.length, turn:S.turn, dir:S.dir, rittner:Math.max(0, S.rittnerUntil - S.turnNo), pattern:Math.max(0, S.patternUntil - S.turnNo), btc:S.btc || 0, step:S.step, drew:S.drew, winner:S.winner, round:S.round, zh:S.zh, bg:S.bg, leutrim:S.leutrim.length,
     link: S.link ? { a:S.link.a, b:S.link.b } : null,
     pile: S.pile.map(c => disguise && c === FREDDY ? f.fake : c),
     log: S.log.map(e => {
@@ -1302,6 +1393,7 @@ function sanitize(d){
   s.turn = intIn(d.turn, 0, N-1, 0);
   s.dir = d.dir === -1 ? -1 : 1;
   s.zh = intIn(d.zh, 0, 99, 0);
+  s.mode = MODES[d.mode] ? d.mode : 'normal'; s.offCount = intIn(d.offCount, 0, 99, 0);
   s.rittner = intIn(d.rittner, 0, 999, 0); s.pattern = intIn(d.pattern, 0, 999, 0); s.btc = intIn(d.btc, 0, 99, 0);
   s.bg = intIn(d.bg, -1, BG_COUNT-1, -1);
   s.leutrim = intIn(d.leutrim, 0, 99, 0);
@@ -1353,9 +1445,9 @@ function cardEl(c){
   return d;
 }
 function heartsStr(p){
-  if (!p.alive) return p.waiting ? '⏳' : '🖤'.repeat(MAX_HEARTS);
+  if (!p.alive) return p.waiting ? '⏳' : '🖤'.repeat(maxHearts());
   const red = p.hearts - p.infected;
-  return (p.color === 'blue' ? '💙' : p.color === 'orange' ? '🧡' : '❤️').repeat(Math.max(red,0)) + '💚'.repeat(p.infected) + '🖤'.repeat(MAX_HEARTS - p.hearts)
+  return (p.color === 'blue' ? '💙' : p.color === 'orange' ? '🧡' : '❤️').repeat(Math.max(red,0)) + '💚'.repeat(p.infected) + '🖤'.repeat(Math.max(0, maxHearts() - p.hearts))
        + (p.shield ? '🛡️' : '') + (p.reflect ? '😼' : '');
 }
 function vEffTurn(v){
@@ -1434,10 +1526,10 @@ function render(){
     el.onclick = () => { sel = (sel === i ? null : i); render(); };
     h.appendChild(el);
   });
-  for (let i = hand.length; i < HAND_MAX; i++) { const e = document.createElement('div'); e.className = 'empty slotfree'; e.textContent = L('frei', '空'); h.appendChild(e); }
+  for (let i = hand.length; i < handMax(); i++) { const e = document.createElement('div'); e.className = 'empty slotfree'; e.textContent = L('frei', '空'); h.appendChild(e); }
   lastHand = hand.slice();
   const me = V.seats[mySeat];
-  $('handLbl').textContent = me && me.alive && V.phase === 'play' ? L(`Deine Karten (${hand.length}/${HAND_MAX}) – nur du siehst sie · antippen zum Auswählen`, `你的牌 (${hand.length}/${HAND_MAX}) – 点击选择`) : L('Deine Karten', '你的牌');
+  $('handLbl').textContent = me && me.alive && V.phase === 'play' ? L(`Deine Karten (${hand.length}/${handMax()}) – nur du siehst sie · antippen zum Auswählen`, `你的牌 (${hand.length}/${handMax()}) – 点击选择`) : L('Deine Karten', '你的牌');
 
   // Ablage
   const pile = $('pile'); pile.innerHTML='';
@@ -1473,6 +1565,7 @@ function render(){
   if (V.phase === 'lobby') {
     st.textContent = players < 2 ? (isHost ? 'Warte auf Mitspieler … schick ihnen den Code oder Link – oder füg Bots hinzu!' : 'Warte auf Mitspieler …')
       : isHost ? `${players} Spieler da – starte das Spiel, wenn alle bereit sind.` : `${players} Spieler da – warte, bis ${V.seats[0] ? V.seats[0].name : 'der Ersteller'} das Spiel startet.`;
+    st.textContent += ` · Modus: ${MODES[V.mode]}` + (V.offCount && V.mode !== 'roulette' ? ` (${V.offCount} Karten raus)` : '');
   } else if (V.phase === 'over') {
     st.textContent = isHost ? 'Runde vorbei – starte eine neue Runde!' : 'Runde vorbei – warte auf die nächste Runde.';
   } else if (t >= 0) {
@@ -1530,8 +1623,9 @@ function render(){
     + (V.btc ? ` · 🪙 ${V.btc}/20` : '');
 
   $('drawBtn').disabled = !(myTurn && V.step === 'draw');
-  $('passBtn').disabled = !(myTurn && V.step === 'act' && V.drew);
+  $('passBtn').disabled = !(myTurn && V.step === 'act' && V.drew) || (V.mode === 'roulette' && hand.length > 0);
   const inGame = V.phase === 'play';
+  $('deckBtn').classList.toggle('hidden', !isHost || inGame);
   ['drawBtn','playBtn','passBtn'].forEach(id => $(id).classList.toggle('hidden', !inGame && isHost));
   const sb = $('startBtn');
   sb.classList.toggle('hidden', !isHost || inGame);
@@ -1609,9 +1703,9 @@ const LORE = {
   35:'Heiße Kartoffel! Bei jedem Zugwechsel: 5 % Chance, dass der Besitzer sofort rausfliegt (der Clown verschwindet mit ihm). Spielst du ihn aus, bekommt ihn der nächste Spieler – bei voller Hand ersetzt er eine Karte.',
   36:'Der nächste Spieler bekommt zufällig einen dieser Effekte: 💀 −1 ❤️, 💍 Heilung, 🛡️ Schild oder 🦠 Infektion.',
   37:'20 Runden lang kommen Heilkarten (💍 😽 🥙 🍺) doppelt so oft – aber auch 🚬 Zigaretten-Pausen.',
-  38:'Wird nicht gespielt: Wer sie zieht, verliert sofort 1 ❤️ und sein Zug ist vorbei.',
+  38:'Wird nicht gespielt: Wer sie zieht, verliert sofort 1 ❤️ und sein Zug ist vorbei. Liegt nur im Stapel, solange 👨‍💼 Herr Rittner wirkt.',
   39:'Jeder bekommt einen 🥙 Dönerspieß – oder Kevins Pizzabrötchen 🍕, das genauso aussieht. Mit 50 % Chance wird außerdem deine Hand mit 🪙 Bitcoin aufgefüllt.',
-  40:'Hat keinen Effekt … Wurden von allen zusammen 20 Bitcoin gespielt, bekommt jeder 1 ❤️. Der Zähler steht oben im Spiel.',
+  40:'Hat keinen Effekt … Wurden von allen zusammen 20 Bitcoin gespielt, bekommt jeder 1 ❤️. Der Zähler steht oben im Spiel. Kommt erst in den Stapel, wenn jemand 📈 Schneeball System gespielt hat.',
   41:'Spielst du ihn, wählst du: 🔫 Erschieß den Hund – nichts passiert. Oder 🤠 Sandro zähmt ihn – 80 %: du wirst infiziert, 20 %: du wirst geheilt.',
   42:'Versteckt eine 💥 Mine irgendwo in den nächsten 30 Karten des Stapels. Wer sie zieht, verliert 1 ❤️.',
   43:'Die versteckte Mine. Kommt nur durch 💣 Miene? in den Stapel. Schild blockt sie, Meowskulls wirft sie zurück zu dem, der sie gelegt hat.',
@@ -1619,6 +1713,7 @@ const LORE = {
   45:'3 Runden lang kommen 👾 Modded und 🪙 Bitcoin viel öfter – und werden sofort gespielt, wenn jemand sie zieht.',
   46:'Du bekommst Birkichts Geheimplan 🗺️ – verdeckt, du kannst ihn nicht lesen.',
   47:'Löst zwei zufällige Effekte anderer Karten auf einmal aus. Kommt nur durch 📜 Birkichts Pläne.',
+  48:'Streitet mit allen, die blaue Herzen 💙 haben (durch 🥓 Speck). Jeder von ihnen bekommt zufällig ein 👾 Is this game modded? auf die Hand – oder eine 🚬 Zigaretten-Pause (−1 ❤️ und aussetzen). Hat keiner blaue Herzen, passiert nichts.',
 };
 const KIND = c => [2,3,7,24,16,17,0,42,43].includes(c) ? 'atk' : [1,9,22,33,31,37].includes(c) ? 'heal' : [4,15].includes(c) ? 'def' : [11,35,21,38].includes(c) ? 'evil' : 'chaos';
 const KIND_NAME = { atk:'Angriff', heal:'Heilung', def:'Schutz', evil:'Gefährlich', chaos:'Chaos' };
@@ -1651,6 +1746,7 @@ function showLoreCard(c){
   const total = DECK_MIX.reduce((a, b) => a + b, 0), n = DECK_MIX[c];
   $('loreStats').textContent = c === SCHOKO ? 'Chance: 0,01 % pro gezogener Karte'
     : n ? `Im Stapel: ${n} von ${total} Karten · ${(100*n/total).toFixed(1).replace('.', ',')} % pro Zug`
+    : c === BTC ? 'Kommt erst durch 📈 Schneeball System in den Stapel (6 Stück)' : c === CIG ? 'Liegt nur während 👨‍💼 Herr Rittner im Stapel (4 Stück)'
     : c === MINE ? 'Kommt nur durch 💣 Miene? in den Stapel' : c === PLAN ? 'Kommt nur durch 📜 Birkichts Pläne' : c === TASK || c === SOLUTION ? 'Kommt nur durch 📝 Herr Barthel' : 'Liegt nicht im Stapel';
   $('loreKind').textContent = KIND_NAME[KIND(c)]; $('loreKind').className = 'lore-kind ' + KIND(c);
   rx = -8; ry = -200; vx = 0; vy = 0; idle = 0;                        // kleine Einflug-Drehung
@@ -1786,6 +1882,47 @@ function showLoreFromPack(c){ closeBooster(); openLore(); showLoreCard(c); }
   $('packAgain').onclick = () => showPack(lastPack);
   $('packBack').onclick = openBooster;
   document.querySelectorAll('.ver').forEach(e => e.textContent = VERSION_LABEL);
+})();
+// ================= SPIELMODUS & DECK (nur Host, vor dem Start) =================
+const MODE_INFO = {
+  classic:'Nur die ersten Karten #1 bis #21 – wie am Anfang.',
+  normal:'Alle Karten.',
+  chaos:'Alle Chaos-Karten (lila) kommen dreimal so oft.',
+  roulette:'Jeder hat 1 ❤️ und nur 1 Kartenplatz – gezogene Karten müssen sofort gespielt werden. Im Stapel: 5 Prüfungsaufgaben pro Spieler und genau eine Mine 💥.',
+};
+function openDeckCfg(){ $('deckcfg').classList.remove('hidden'); document.body.style.overflow = 'hidden'; renderDeckCfg(); }
+function closeDeckCfg(){ $('deckcfg').classList.add('hidden'); document.body.style.overflow = ''; }
+function renderDeckCfg(){
+  if (!S || !isHost || $('deckcfg').classList.contains('hidden')) return;
+  const mode = S.cfg.mode, mb = $('modeBtns'); mb.innerHTML = '';
+  Object.entries(MODES).forEach(([k, name]) => {
+    const b = document.createElement('button'); b.className = 'modebtn' + (k === mode ? ' on' : ''); b.textContent = name;
+    b.onclick = () => setMode(k); mb.appendChild(b);
+  });
+  $('modeInfo').textContent = MODE_INFO[mode];
+  const g = $('deckGrid'); g.innerHTML = '';
+  const roulette = mode === 'roulette';
+  $('deckGridWrap').classList.toggle('hidden', roulette);
+  const cards = CARDS.map((_, k) => k).filter(k => DECK_MIX[k] > 0 || k === BTC || k === CIG);
+  let on = 0;
+  cards.forEach(k => {
+    const outOfMode = mode === 'classic' && k > 20;
+    const active = !S.cfg.off.includes(k) && !outOfMode;
+    if (active) on++;
+    const b = document.createElement('button');
+    b.className = 'lore-item deckitem ' + KIND(k) + (active ? '' : ' off') + (outOfMode ? ' locked' : '');
+    b.innerHTML = `<span class="li-emoji">${CARDS[k].emoji}</span><span class="li-name"></span><span class="li-state">${outOfMode ? 'nicht im Modus' : active ? '✓ drin' : '✕ raus'}</span>`;
+    b.querySelector('.li-name').textContent = CARDS[k].text;
+    if (!outOfMode) b.onclick = () => toggleCard(k);
+    g.appendChild(b);
+  });
+  $('deckCount2').textContent = `${on} von ${cards.length} Karten im Deck`;
+}
+(function initDeckCfg(){
+  $('deckBtn').onclick = openDeckCfg;
+  $('deckClose').onclick = closeDeckCfg;
+  $('deckAllOn').onclick = () => { if (isHost && S.phase !== 'play') { S.cfg.off = []; broadcast(); renderDeckCfg(); } };
+  $('deckAllOff').onclick = () => { if (isHost && S.phase !== 'play') { S.cfg.off = CARDS.map((_, k) => k).filter(k => DECK_MIX[k] > 0 || k === BTC || k === CIG); broadcast(); renderDeckCfg(); } };
 })();
 </script>
 </body>
