@@ -376,7 +376,7 @@
       😼 <b>Meowskulls</b> – der nächste Angriff auf dich fliegt zurück zu dem, der ihn gespielt hat. Bei 😱 bleibst du verschont und der Spieler verliert ein Herz extra.<br>
       🦗 <b>Grillenberger</b> – macht gar nichts … außer du hast 3 davon auf der Hand: dann spielst du alle auf einmal und der nächste Spieler verliert 3 ❤️.<br>
       🐻 <b>Freddy Fazebear</b> – eine Falle: der nächste Spieler verliert 1 ❤️, wenn er in seinem nächsten Zug eine Karte <b>legt</b>. Beendet er den Zug ohne zu legen, passiert nichts. Bis dahin sehen die anderen statt Freddy eine zufällige andere Karte.<br>
-      👾 <b>Is this game modded?</b> – der Hintergrund ändert sich (für alle).<br>
+      👾 <b>Is this game modded?</b> – der Hintergrund ändert sich (für alle). Jedes Bild kommt pro Sitzung nur einmal – erst wenn alle dran waren, geht es von vorne los.<br>
       🎭 <b>Pascal</b> – tarnt sich auf deiner Hand als eine andere Karte (meistens 🦗 Grillenberger). Die anderen sehen an deinem Spielerfeld 🎭, dass du einen Pascal hast – du nicht. Gespielt löst er den Effekt einer zufälligen anderen Karte aus.<br>
       🍕 <b>Kevins Pizzabrötchen</b> – sieht auf deiner Hand aus wie 🥙 Dönerspieß. Gespielt werden alle deine Herzen infiziert 💚 (bei deinem übernächsten Zug sind sie weg, wenn du sie nicht heilst).<br>
       🥙 <b>So ein großer Dönerspieß</b> – heilt alle um 1 ❤️. Wurde direkt davor 🔄 Leon gespielt, heilt er alle um 3 ❤️.<br>
@@ -395,7 +395,7 @@
       👨‍💼 <b>Herr Rittner</b> – 20 Runden lang kommen Heilkarten (💍 😽 🥙 🍺) doppelt so oft, aber auch 🚬 Zigaretten-Pausen.<br>
       🚬 <b>Zigaretten Pause</b> – liegt nur im Stapel, solange Herr Rittner wirkt. Wer sie zieht, verliert sofort 1 ❤️ und sein Zug ist vorbei.<br>
       📈 <b>Schneeball System</b> – jeder bekommt einen 🥙 Dönerspieß, der aber auch ein 🍕 Kevins Pizzabrötchen sein kann. Mit 50 % wird deine Hand mit 🪙 Bitcoin aufgefüllt.<br>
-      🪙 <b>Bitcoin</b> – kommt erst in den Stapel, wenn jemand 📈 Schneeball System spielt. Kein Effekt. Wurden von allen zusammen 20 gespielt, bekommt jeder 1 ❤️ (Zähler steht oben).<br>
+      🪙 <b>Bitcoin</b> – kommt erst in den Stapel, wenn jemand 📈 Schneeball System spielt (genau 20 Stück). Kein Effekt. Wurden von allen zusammen 20 gespielt, bekommt jeder 1 ❤️ (Zähler steht oben).<br>
       🐕 <b>Das ist ein Hund</b> – du wählst: 🔫 Erschieß den Hund (nichts passiert) oder 🤠 Sandro zähmt ihn (80 % infiziert, 20 % geheilt).<br>
       💣 <b>Miene?</b> – versteckt eine 💥 Mine in den nächsten 30 Karten. Wer sie zieht, verliert 1 ❤️.<br>
       🎰 <b>Let it ride</b> – 50/50 für 3 Runden: viel öfter gute Karten 🍀 oder Hand voller 📄 Prüfungsaufgaben.<br>
@@ -492,7 +492,7 @@ const curMode = () => (typeof S !== 'undefined' && S && S.cfg) ? S.cfg.mode : (t
 const handMax = () => curMode() === 'roulette' ? 1 : HAND_MAX;
 const maxHearts = () => curMode() === 'roulette' ? 1 : MAX_HEARTS;
 const VERSION = 16;   // Spiel-Protokoll: bei jeder Regeländerung erhöhen – alte und neue Version können nicht zusammen spielen
-const VERSION_LABEL = '16';   // angezeigte Version (Bugfixes ändern nur diese Zahl)
+const VERSION_LABEL = '16.1';   // angezeigte Version (Bugfixes ändern nur diese Zahl)
 const $ = id => document.getElementById(id);
 
 const shuffle = a => { for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
@@ -544,7 +544,7 @@ const newPlayer = (name, waiting=false, bot=false) => ({ name, bot, hearts: wait
 
 function freshState(){
   return { phase:'lobby', seats:Array(N).fill(null), hands:SEATS.map(() => []), deck:newDeck(), turn:0, turnNo:0, dir:1, step:'draw', drew:false,
-           pile:[], log:[], winner:null, round:Date.now(), zh:0, link:null, freddy:null, fid:0, bg:-1, leutrim:[], lastCard:-1, mix:null, rittnerUntil:0, patternUntil:0, btc:0, extra:{}, cfg:{ mode:'normal', off:[] } };
+           pile:[], log:[], winner:null, round:Date.now(), zh:0, link:null, freddy:null, fid:0, bg:-1, leutrim:[], lastCard:-1, mix:null, rittnerUntil:0, patternUntil:0, btc:0, extra:{}, cfg:{ mode:'normal', off:[] }, bgUsed:[] };
 }
 function aliveSeats(st){ return SEATS.filter(i => st.seats[i] && st.seats[i].alive); }
 function effTurn(st){
@@ -865,8 +865,11 @@ function effect(seat, c, tgt){
     }
     case 18: { S.link = { a: seat, b: tgt }; return { target:chosen.name, res:`${me.name} und ${chosen.name} teilen sich bis zu ${me.name}s nächstem Zug Schaden und Heilung 🔗` }; }
     case MODDED: {
-      let b; do { b = Math.floor(Math.random()*BG_COUNT); } while (b === S.bg && BG_COUNT > 1);
-      S.bg = b;
+      if (!Array.isArray(S.bgUsed)) S.bgUsed = [];
+      let free = [...Array(BG_COUNT).keys()].filter(k => !S.bgUsed.includes(k));
+      if (!free.length) { S.bgUsed = S.bg >= 0 ? [S.bg] : []; free = [...Array(BG_COUNT).keys()].filter(k => k !== S.bg); }   // alle gesehen -> neu anfangen
+      const b = pick(free);
+      S.bgUsed.push(b); S.bg = b;
       return { res:'👾 Is this game modded?! Der Hintergrund hat sich verändert …' };
     }
     case PASCAL: {                                 // 🎭 zufälliger Effekt einer anderen Karte
@@ -951,7 +954,7 @@ function effect(seat, c, tgt){
     case CIG: { hurt(me, 1); return { res:`raucht eine 🚬 – −1 Herz (${H(Math.max(me.hearts,0))} übrig)` }; }
     case MINE: { hurt(me, 1); return { res:`tritt auf eine 💥 Mine – −1 Herz` }; }
     case SNOWBALL: {                               // 📈 alle bekommen Döner … oder Kevin
-      if (!S.extra[BTC]) { S.extra[BTC] = 6; for (let k = 0; k < 6; k++) S.deck.splice(Math.floor(Math.random() * (S.deck.length + 1)), 0, BTC); if (S.mix) S.mix[BTC] = 6; }
+      if (!S.extra[BTC]) { S.extra[BTC] = 20; for (let k = 0; k < 20; k++) S.deck.splice(Math.floor(Math.random() * (S.deck.length + 1)), 0, BTC); if (S.mix) S.mix[BTC] = 20; }
       let n = 0;
       aliveSeats(S).forEach(i => { if (S.hands[i].length < handMax()) { S.hands[i].push(Math.random() < 0.5 ? DONER : dressed(KEVIN)); n++; } });
       let btc = 0;
@@ -1705,7 +1708,7 @@ const LORE = {
   37:'20 Runden lang kommen Heilkarten (💍 😽 🥙 🍺) doppelt so oft – aber auch 🚬 Zigaretten-Pausen.',
   38:'Wird nicht gespielt: Wer sie zieht, verliert sofort 1 ❤️ und sein Zug ist vorbei. Liegt nur im Stapel, solange 👨‍💼 Herr Rittner wirkt.',
   39:'Jeder bekommt einen 🥙 Dönerspieß – oder Kevins Pizzabrötchen 🍕, das genauso aussieht. Mit 50 % Chance wird außerdem deine Hand mit 🪙 Bitcoin aufgefüllt.',
-  40:'Hat keinen Effekt … Wurden von allen zusammen 20 Bitcoin gespielt, bekommt jeder 1 ❤️. Der Zähler steht oben im Spiel. Kommt erst in den Stapel, wenn jemand 📈 Schneeball System gespielt hat.',
+  40:'Hat keinen Effekt … Wurden von allen zusammen 20 Bitcoin gespielt, bekommt jeder 1 ❤️. Der Zähler steht oben im Spiel. Kommt erst in den Stapel, wenn jemand 📈 Schneeball System gespielt hat – dann genau 20 Stück.',
   41:'Spielst du ihn, wählst du: 🔫 Erschieß den Hund – nichts passiert. Oder 🤠 Sandro zähmt ihn – 80 %: du wirst infiziert, 20 %: du wirst geheilt.',
   42:'Versteckt eine 💥 Mine irgendwo in den nächsten 30 Karten des Stapels. Wer sie zieht, verliert 1 ❤️.',
   43:'Die versteckte Mine. Kommt nur durch 💣 Miene? in den Stapel. Schild blockt sie, Meowskulls wirft sie zurück zu dem, der sie gelegt hat.',
@@ -1746,7 +1749,7 @@ function showLoreCard(c){
   const total = DECK_MIX.reduce((a, b) => a + b, 0), n = DECK_MIX[c];
   $('loreStats').textContent = c === SCHOKO ? 'Chance: 0,01 % pro gezogener Karte'
     : n ? `Im Stapel: ${n} von ${total} Karten · ${(100*n/total).toFixed(1).replace('.', ',')} % pro Zug`
-    : c === BTC ? 'Kommt erst durch 📈 Schneeball System in den Stapel (6 Stück)' : c === CIG ? 'Liegt nur während 👨‍💼 Herr Rittner im Stapel (4 Stück)'
+    : c === BTC ? 'Kommt erst durch 📈 Schneeball System in den Stapel (20 Stück)' : c === CIG ? 'Liegt nur während 👨‍💼 Herr Rittner im Stapel (4 Stück)'
     : c === MINE ? 'Kommt nur durch 💣 Miene? in den Stapel' : c === PLAN ? 'Kommt nur durch 📜 Birkichts Pläne' : c === TASK || c === SOLUTION ? 'Kommt nur durch 📝 Herr Barthel' : 'Liegt nicht im Stapel';
   $('loreKind').textContent = KIND_NAME[KIND(c)]; $('loreKind').className = 'lore-kind ' + KIND(c);
   rx = -8; ry = -200; vx = 0; vy = 0; idle = 0;                        // kleine Einflug-Drehung
