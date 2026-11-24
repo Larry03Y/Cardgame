@@ -47,6 +47,7 @@
   .player.out { opacity:.45; }
   .player.winner { border-color:#7CFC9A; background:rgba(124,252,154,.15); }
   .player .nm { font-weight:700; font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  body.en .player.me .nm::after { content:" (you)"; }
   .player.me .nm::after { content:" (du)"; color:var(--gold); font-weight:400; font-size:12px; }
   .player.free .nm { color:var(--dim); font-weight:400; }
   .player .hearts { font-size:18px; letter-spacing:1px; min-height:24px; }
@@ -245,80 +246,107 @@
     .log { max-height:140px; font-size:13px; padding:8px 10px; }
     .rules { font-size:12.5px; margin-bottom:16px; }
   }
+
+  /* ---- v17: Bild-Karten, WhatsApp-Grün, Crash-Auswahl, Sprache ---- */
+  .card.pic .front { padding:0; gap:0; justify-content:flex-start; overflow:hidden; }
+  .card.pic .front .emoji { display:none; }
+  .card.pic .front .txt { width:100%; padding:5px 4px 4px; background:#fff; font-size:14px; line-height:1.1; flex-shrink:0; }
+  .card.pic .front .txt.mid { font-size:12.5px; } .card.pic .front .txt.long { font-size:11px; }
+  .card.pic .picimg { flex:1; width:100%; min-height:0; background-size:cover; background-position:center; }
+  .card.pic .front .eff { width:100%; padding:4px 6px 5px; background:#fff; font-size:10.5px; -webkit-line-clamp:3; max-height:calc(1.3em * 3 + 9px); }
+  .slot.small .card.pic .front .txt { font-size:11px; }
+  .bwrap .card.pic .front .txt { font-size:11px; } .bwrap .card.pic .front .eff { font-size:8.5px; }
+  @media (max-width: 600px) { .card.pic .front .txt { font-size:11px; } .card.pic .front .txt.long, .card.pic .front .txt.mid { font-size:9.5px; } .card.pic .front .eff { font-size:8.5px; } }
+  .f3in.haspic { justify-content:flex-start; padding:12px; gap:8px; }
+  .f3pic { width:100%; flex:1; min-height:0; border-radius:10px; background-size:cover; background-position:center; box-shadow:inset 0 0 0 1px rgba(0,0,0,.15); }
+  .f3in.haspic .f3eff { font-size:12px; }
+  .targets.crash { max-height:260px; overflow-y:auto; gap:6px; padding:6px; background:rgba(0,0,0,.25); border-radius:12px; max-width:720px; }
+  .targets .crashhdr { width:100%; text-align:center; font-weight:800; margin-bottom:2px; }
+  .targets button.crashpick { background:#e67e22; padding:8px 11px; font-size:13px; }
+  body.wa { --felt:#25d366; --felt2:#128c7e; }
+  body.wa, body.wa .card .front { filter:none; }
+  body.wa .front, body.wa .f3in { background:#dcf8c6 !important; }
+  body.wa .players .player { background:rgba(7,94,84,.75); }
+  body.wa h1::after { content:" 💬"; }
+  .setbar { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin:4px 0 10px; }
+  .setbar button { padding:7px 12px; font-size:13px; }
+  .rules-cards div { margin:2px 0; }
+  body:not(.en) .rules-en, body.en .rules-de { display:none; }
 </style>
 </head>
 <body>
   <div id="bgimg" class="hidden"></div>
   <div id="deckcfg" class="lore hidden">
-    <div class="lore-head"><b>🎮 Spielmodus & Deck</b><button id="deckClose" class="sec">✕</button></div>
+    <div class="lore-head"><b data-en="🎮 Game mode & deck">🎮 Spielmodus & Deck</b><button id="deckClose" class="sec">✕</button></div>
     <div class="cfg-box">
       <div id="modeBtns" class="modebtns"></div>
       <div id="modeInfo" class="mode-info"></div>
     </div>
     <div id="deckGridWrap">
-      <div class="cfg-row"><span id="deckCount2" class="lore-stats"></span><button id="deckAllOn" class="sec">Alle rein</button><button id="deckAllOff" class="sec">Alle raus</button></div>
-      <div class="booster-sub">Tipp eine Karte an, um sie aus dem Deck zu nehmen oder wieder reinzulegen.</div>
+      <div class="cfg-row"><span id="deckCount2" class="lore-stats"></span><button id="deckAllOn" class="sec" data-en="All in">Alle rein</button><button id="deckAllOff" class="sec" data-en="All out">Alle raus</button></div>
+      <div class="booster-sub" data-en="Tap a card to take it out of the deck or put it back in.">Tipp eine Karte an, um sie aus dem Deck zu nehmen oder wieder reinzulegen.</div>
       <div id="deckGrid" class="lore-grid"></div>
     </div>
   </div>
   <div id="booster" class="lore hidden">
-    <div class="lore-head"><b>🎁 Booster-Packs</b><button id="boosterClose" class="sec">✕</button></div>
-    <div class="booster-sub">Nur zum Spaß – die Karten haben keine Auswirkung aufs Spiel. Jedes Pack: 5 zufällige Karten.</div>
+    <div class="lore-head"><b data-en="🎁 Booster packs">🎁 Booster-Packs</b><button id="boosterClose" class="sec">✕</button></div>
+    <div class="booster-sub" data-en="Just for fun – the cards have no effect on the game. Every pack: 5 random cards.">Nur zum Spaß – die Karten haben keine Auswirkung aufs Spiel. Jedes Pack: 5 zufällige Karten.</div>
     <div id="packChoice" class="packs"></div>
     <div id="packOpen" class="pack-open hidden">
       <div id="packArt" class="pack big"></div>
       <div id="packCards" class="pack-cards"></div>
       <div id="packHint" class="lore-hint"></div>
-      <div id="packBtns" class="pack-btns hidden"><button id="packAgain">Noch eins öffnen</button><button id="packBack" class="sec">Anderes Pack</button></div>
+      <div id="packBtns" class="pack-btns hidden"><button id="packAgain" data-en="Open another">Noch eins öffnen</button><button id="packBack" class="sec" data-en="Other pack">Anderes Pack</button></div>
     </div>
     <div id="collection" class="lore-stats"></div>
   </div>
   <div id="lore" class="lore hidden">
-    <div class="lore-head"><b>📖 Karten-Lore</b><button id="loreClose" class="sec">✕</button></div>
+    <div class="lore-head"><b data-en="📖 Card lore">📖 Karten-Lore</b><button id="loreClose" class="sec">✕</button></div>
     <div id="loreGrid" class="lore-grid"></div>
     <div id="loreDetail" class="lore-detail hidden">
-      <button id="loreBack" class="sec">← Alle Karten</button>
+      <button id="loreBack" class="sec" data-en="← All cards">← Alle Karten</button>
       <div class="stage" id="stage">
         <div class="card3d" id="card3d"><div class="f3 front3" id="front3"></div><div class="f3 back3"><div class="b3in">?</div></div></div>
       </div>
-      <div class="lore-hint">👆 Karte ziehen zum Drehen</div>
+      <div class="lore-hint" data-en="👆 Drag the card to spin it">👆 Karte ziehen zum Drehen</div>
       <div class="lore-nav"><button id="lorePrev" class="sec">‹</button><h2 id="loreName"></h2><button id="loreNext" class="sec">›</button></div>
       <div class="lore-kind" id="loreKind"></div>
       <p id="loreEff"></p>
       <div id="loreStats" class="lore-stats"></div>
     </div>
   </div>
-  <h1>🃏 Das Kartenspiel</h1>
-  <div class="sub">2–6 Spieler · jeder auf seinem eigenen Gerät · ohne Anmeldung · mit Bots</div>
+  <h1 data-en="🃏 The Card Game">🃏 Das Kartenspiel</h1>
+  <div class="sub" data-en="2–6 players · everyone on their own device · no sign-up · with bots">2–6 Spieler · jeder auf seinem eigenen Gerät · ohne Anmeldung · mit Bots</div>
+  <div class="setbar"><button class="sec langbtn">🇬🇧 English</button><button class="sec picbtn">🖼️ Kartenbilder: an</button></div>
 
   <!-- LOBBY -->
   <div class="lobby" id="lobby">
     <div class="box">
-      <h3>Dein Name</h3>
-      <input class="txt" id="nameIn" maxlength="14" placeholder="z. B. Ischan">
+      <h3 data-en="Your name">Dein Name</h3>
+      <input class="txt" id="nameIn" maxlength="14" placeholder="z. B. Ischan" data-en-ph="e.g. Ischan">
     </div>
     <div class="box">
-      <h3>Neuen Raum erstellen</h3>
-      <button id="hostBtn">Raum erstellen</button>
+      <h3 data-en="Create a new room">Neuen Raum erstellen</h3>
+      <button id="hostBtn" data-en="Create room">Raum erstellen</button>
     </div>
     <div class="box">
-      <h3>Einem Raum beitreten</h3>
+      <h3 data-en="Join a room">Einem Raum beitreten</h3>
       <div class="row">
         <input class="txt" id="codeIn" maxlength="6" placeholder="CODE">
-        <button id="joinBtn">Beitreten</button>
+        <button id="joinBtn" data-en="Join">Beitreten</button>
       </div>
     </div>
     <div class="err" id="lobbyErr"></div>
-    <button id="loreBtn" class="sec">📖 Karten-Lore – alle Karten ansehen</button>
-    <button id="boosterBtn" class="sec">🎁 Booster-Packs öffnen</button>
+    <button id="loreBtn" class="sec" data-en="📖 Card lore – see all cards">📖 Karten-Lore – alle Karten ansehen</button>
+    <button id="boosterBtn" class="sec" data-en="🎁 Open booster packs">🎁 Booster-Packs öffnen</button>
     <div class="menuver">Version <span class="ver"></span></div>
   </div>
 
   <!-- SPIEL -->
   <div id="game" class="hidden" style="display:flex; flex-direction:column; align-items:center; width:100%;">
     <div class="roombar">
-      <span>Raum-Code:</span><span class="code" id="codeOut"></span>
-      <button class="sec" id="copyBtn">Einladungslink kopieren</button>
+      <span data-en="Room code:">Raum-Code:</span><span class="code" id="codeOut"></span>
+      <button class="sec" id="copyBtn" data-en="Copy invite link">Einladungslink kopieren</button>
     </div>
     <div class="banner hidden" id="banner"></div>
     <div class="players" id="players"></div>
@@ -344,67 +372,40 @@
       <button id="drawBtn">Karte ziehen</button>
       <button id="playBtn" disabled>Ausspielen</button>
       <button id="passBtn" class="sec" disabled>Zug beenden</button>
-      <button id="botBtn" class="sec hidden">🤖 Bot hinzufügen</button>
-      <button id="deckBtn" class="sec hidden">🎮 Modus & Deck</button>
+      <button id="botBtn" class="sec hidden" data-en="🤖 Add bot">🤖 Bot hinzufügen</button>
+      <button id="deckBtn" class="sec hidden" data-en="🎮 Mode & deck">🎮 Modus & Deck</button>
       <button id="startBtn" class="hidden">Spiel starten</button>
     </div>
     <div class="log" id="log"></div>
-    <button id="loreBtn2" class="sec lorebtn2">📖 Karten-Lore</button>
+    <div class="setbar"><button class="sec langbtn">🇬🇧 English</button><button class="sec picbtn">🖼️ Kartenbilder: an</button></div>
+    <button id="loreBtn2" class="sec lorebtn2" data-en="📖 Card lore">📖 Karten-Lore</button>
     <details class="rules" open>
-      <summary>Regeln</summary>
-      <b>Spielmodi</b> (wählt der Raum-Ersteller unter „🎮 Modus &amp; Deck“): Classic (nur Karten #1–#21), Normal (alle), Chaos (lila Chaos-Karten 3× so oft), Russian Roulette (1 ❤️, 1 Kartenplatz, nur Prüfungsaufgaben und eine Mine). Dort kann er auch einzelne Karten aus dem Deck nehmen. 🤡 Clownchan liegt nur einmal im Stapel.<br>
+      <summary data-en="Rules">Regeln</summary>
+      <div class="rules-de">
+      <b>Spielmodi</b> (wählt der Raum-Ersteller unter „🎮 Modus &amp; Deck“): Classic (nur Karten #1–#21), Normal (alle), Chaos (lila Chaos-Karten 3× so oft), Blind (alle Karten verdeckt), Quickplay (2 ❤️, mehr Angriffe, schnellere Bots), Russian Roulette (1 ❤️, 1 Kartenplatz, nur Prüfungsaufgaben und eine Mine). Dort kann er auch einzelne Karten aus dem Deck nehmen. 🤡 Clownchan liegt nur einmal im Stapel.<br>
       Bis zu <b>6 Spieler</b>. Der Raum-Ersteller kann vor dem Start <b>🤖 Bots</b> hinzufügen (✕ entfernt sie wieder).<br>
       Jeder startet mit <b>3 ❤️</b> und darf bis zu <b>3 Karten</b> auf der Hand haben – nur du siehst deine Karten.<br>
       <b>Dein Zug:</b> Zieh eine Karte. Dann spielst du <b>eine</b> Karte aus <b>oder</b> beendest den Zug und hebst deine Karten für später auf.
-      Hast du am Anfang deines Zugs schon 3 Karten, ziehst du nicht, sondern <b>musst</b> eine ausspielen.<br><br>
+      Hast du am Anfang deines Zugs schon 3 Karten, ziehst du nicht, sondern <b>musst</b> eine ausspielen.<br>
       „Der nächste Spieler“ ist immer der nächste in Spielrichtung (am Anfang im Uhrzeigersinn).<br>
-      💀 <b>Du bist tot</b> – der nächste Spieler verliert 1 ❤️.<br>
-      🦠 <b>Du bist infiziert</b> – beim nächsten Spieler wird ein Herz grün 💚. Ab der nächsten Runde (bei seinem übernächsten Zug) ist es weg.<br>
-      😱 <b>IYAAAH</b> – <b>alle</b> verlieren 1 ❤️, auch du.<br>
-      😡 <b>Das geht nicht</b> – du bekommst ein Schild 🛡️. Es blockt den nächsten Angriff auf dich (💀, 🦠 oder 😱) und ist dann weg. Mehr als ein Schild geht nicht.<br>
-      💍 <b>Ich hasse meine Frau</b> – für dich: heilt ein grünes Herz, sonst bekommst du 1 ❤️ zurück (max. 3).<br>
-      🤷 <b>Ist mir egal</b> – die Handkarten aller Spieler werden zufällig getauscht. Jeder bekommt die Karten von jemand anderem.<br>
-      🧔 <b>Kosta</b> – alle Spieler (auch du) legen ihre gesammelten Karten zurück auf den Stapel, danach wird neu gemischt.<br>
-      👨‍🏫 <b>Herr Birkicht</b> – du wählst einen Spieler, er verliert 1 ❤️.<br>
-      😴 <b>Janek</b> – du wählst einen Spieler, er muss seine nächste Runde aussetzen.<br>
-      😽 <b>Katze mit großen Lippen</b> – heilt alle Spieler (grünes Herz wird rot, sonst +1 ❤️).<br>
-      🔄 <b>Leon</b> – die Spielrichtung dreht sich um.<br>
-      🦊 <b>Furry Baddie</b> – die nächste Karte, die der nächste Spieler zieht, bleibt geheim ❓. Er weiß erst nach dem Ausspielen, was sie war (braucht die Karte ein Ziel, wird es zufällig bestimmt).<br>
-      🍫 <b>Schokokuss</b> – alle sterben, niemand gewinnt. Die Chance, ihn zu ziehen, liegt bei 0,01 %.<br>
-      🦇 <b>Goth Baddie</b> – alle Handkarten werden eingesammelt, gemischt und verdeckt ❓ neu verteilt (jeder behält seine Anzahl).<br>
-      🀄 <b>Herr Günther</b> – das Spiel ist 3 Runden lang auf Chinesisch.<br>
-      😼 <b>Meowskulls</b> – der nächste Angriff auf dich fliegt zurück zu dem, der ihn gespielt hat. Bei 😱 bleibst du verschont und der Spieler verliert ein Herz extra.<br>
-      🦗 <b>Grillenberger</b> – macht gar nichts … außer du hast 3 davon auf der Hand: dann spielst du alle auf einmal und der nächste Spieler verliert 3 ❤️.<br>
-      🐻 <b>Freddy Fazebear</b> – eine Falle: der nächste Spieler verliert 1 ❤️, wenn er in seinem nächsten Zug eine Karte <b>legt</b>. Beendet er den Zug ohne zu legen, passiert nichts. Bis dahin sehen die anderen statt Freddy eine zufällige andere Karte.<br>
-      👾 <b>Is this game modded?</b> – der Hintergrund ändert sich (für alle). Jedes Bild kommt pro Sitzung nur einmal – erst wenn alle dran waren, geht es von vorne los.<br>
-      🎭 <b>Pascal</b> – tarnt sich auf deiner Hand als eine andere Karte (meistens 🦗 Grillenberger). Die anderen sehen an deinem Spielerfeld 🎭, dass du einen Pascal hast – du nicht. Gespielt löst er den Effekt einer zufälligen anderen Karte aus.<br>
-      🍕 <b>Kevins Pizzabrötchen</b> – sieht auf deiner Hand aus wie 🥙 Dönerspieß. Gespielt werden alle deine Herzen infiziert 💚 (bei deinem übernächsten Zug sind sie weg, wenn du sie nicht heilst).<br>
-      🥙 <b>So ein großer Dönerspieß</b> – heilt alle um 1 ❤️. Wurde direkt davor 🔄 Leon gespielt, heilt er alle um 3 ❤️.<br>
-      🦝 <b>Wanunanuninuninu</b> – du wählst einen Spieler und klaust ihm eine zufällige Karte.<br>
-      🪑 <b>Exploding chair</b> – du wählst einen Spieler: er verliert 1 ❤️ und setzt eine Runde aus.<br>
-      🎴 <b>Törke</b> – du ziehst zwei Karten (höchstens bis 3 auf der Hand).<br>
-      🥓 <b>Speck</b> – alle deine Herzen werden blau 💙. Sonst passiert nichts.<br>
-      👻 <b>Leutrim</b> – verschwindet für 1 bis 20 Züge. Taucht er wieder auf, klaut er einem zufälligen Spieler eine Karte und gibt sie dir. Hat der keine Karten, wird er stattdessen um 1 ❤️ geheilt.<br>
-      ⚡ <b>RCD</b> – 50/50: entweder bekommen alle 2 ❤️ oder alle verlieren 2 ❤️ (Schild blockt).<br>
-      📝 <b>Herr Barthel</b> – füllt die Hände aller Spieler mit 📄 Prüfungsaufgaben auf (die machen nichts). Mit 20 % Chance bekommt einer stattdessen die 🔑 Lösung: Wer sie spielt, wird alle Prüfungsaufgaben los und bekommt „Ich hasse meine Frau“.<br>
-      🤓 <b>Ich bin eh Smarter</b> – die Chancen aller Karten werden zufällig neu verteilt und der Stapel neu gemischt. Das gilt, bis jemand gewonnen hat.<br>
-      🍺 <b>Bier</b> – du bekommst 1 ❤️. Ab dem 4. Bier in derselben Runde verlierst du stattdessen bei jedem weiteren Bier 1 ❤️. Die Biere sieht man am Spielerfeld.<br>
-      🧡 <b>Ginger please</b> – deine Herzen werden orange (ändert nichts). Außerdem bleibt bei <b>allen</b> Spielern (auch dir) die nächste gezogene Karte geheim ❓, wie bei Furry Baddie.<br>
-      🤡 <b>Clownchan</b> – heiße Kartoffel! Bei jedem Zugwechsel hat jeder, der Clownchan auf der Hand hat, eine 5-%-Chance (1 von 20), sofort rauszufliegen. Clownchan verschwindet dann mit ihm. Spielst du ihn aus, bekommt ihn der nächste Spieler. Hat der schon 3 Karten, ersetzt Clownchan eine davon. Alle sehen am Spielerfeld 🤡, wer ihn gerade hat.<br>
-      🧃 <b>Macjucie</b> – der nächste Spieler bekommt zufällig einen dieser Effekte: 💀 (−1 ❤️), 💍 (Heilung), 🛡️ (Schild) oder 🦠 (Infektion).<br>
-      👨‍💼 <b>Herr Rittner</b> – 20 Runden lang kommen Heilkarten (💍 😽 🥙 🍺) doppelt so oft, aber auch 🚬 Zigaretten-Pausen.<br>
-      🚬 <b>Zigaretten Pause</b> – liegt nur im Stapel, solange Herr Rittner wirkt. Wer sie zieht, verliert sofort 1 ❤️ und sein Zug ist vorbei.<br>
-      📈 <b>Schneeball System</b> – jeder bekommt einen 🥙 Dönerspieß, der aber auch ein 🍕 Kevins Pizzabrötchen sein kann. Mit 50 % wird deine Hand mit 🪙 Bitcoin aufgefüllt.<br>
-      🪙 <b>Bitcoin</b> – kommt erst in den Stapel, wenn jemand 📈 Schneeball System spielt (genau 20 Stück). Kein Effekt. Wurden von allen zusammen 20 gespielt, bekommt jeder 1 ❤️ (Zähler steht oben).<br>
-      🐕 <b>Das ist ein Hund</b> – du wählst: 🔫 Erschieß den Hund (nichts passiert) oder 🤠 Sandro zähmt ihn (80 % infiziert, 20 % geheilt).<br>
-      💣 <b>Miene?</b> – versteckt eine 💥 Mine in den nächsten 30 Karten. Wer sie zieht, verliert 1 ❤️.<br>
-      🎰 <b>Let it ride</b> – 50/50 für 3 Runden: viel öfter gute Karten 🍀 oder Hand voller 📄 Prüfungsaufgaben.<br>
-      🌀 <b>Pussy Pattern</b> – 3 Runden lang kommen 👾 Modded und 🪙 Bitcoin viel öfter und werden beim Ziehen sofort gespielt.<br>
-      📜 <b>Birkichts Pläne</b> – du bekommst einen verdeckten 🗺️ Geheimplan. Gespielt löst er zwei zufällige Effekte anderer Karten aus.<br>
-      🗣️ <b>Grigori</b> – streitet mit allen, die blaue Herzen 💙 haben: Jeder bekommt zufällig 👾 Modded auf die Hand oder eine 🚬 Zigaretten-Pause (−1 ❤️, aussetzen).<br>
-      🔗 <b>Goonnectet</b> – du wählst einen Spieler. Bis zu deinem nächsten Zug bekommt ihr beide jeden Schaden und jede Heilung ab, die einer von euch bekommt.<br>
-      Angriffe sind 💀, 🦠, 😱, 👨‍🏫, 😴, 🦗🦗🦗, 🐻, 🦝 und 🪑. Die Reihenfolge: zuerst Meowskulls 😼, dann Schild 🛡️.<br><br>
-      Ohne Herzen bist du raus und schaust bis zum Ende der Runde zu. <b>Wer als Letztes noch Herzen hat, gewinnt.</b>
+      Oben kann jeder für sich die <b>Sprache</b> (Deutsch/English) und die <b>Kartenbilder</b> umstellen.<br><br>
+      <b>Alle Karten:</b>
+      </div>
+      <div class="rules-en">
+      <b>Game modes</b> (the host picks them under “🎮 Mode &amp; deck”): Classic (only cards #1–#21), Normal (all), Chaos (purple chaos cards 3× as often), Blind (all cards face down), Quickplay (2 ❤️, more attacks, faster bots), Russian Roulette (1 ❤️, 1 card slot, only exam tasks and one mine). The host can also take single cards out of the deck there. 🤡 Clownchan is only in the deck once.<br>
+      Up to <b>6 players</b>. Before the start the host can add <b>🤖 bots</b> (✕ removes them).<br>
+      Everyone starts with <b>3 ❤️</b> and can hold up to <b>3 cards</b> – only you see your cards.<br>
+      <b>Your turn:</b> Draw a card. Then play <b>one</b> card <b>or</b> end your turn and keep your cards for later.
+      If you already have 3 cards at the start of your turn, you don't draw but <b>have to</b> play one.<br>
+      “The next player” is always the next one in play direction (clockwise at the start).<br>
+      At the top everyone can switch the <b>language</b> (Deutsch/English) and the <b>card pictures</b> for themselves.<br><br>
+      <b>All cards:</b>
+      </div>
+      <div id="rulesCards" class="rules-cards"></div><br>
+      <div class="rules-de">Angriffe (z. B. 💀, 🦠, 😱, 👨‍🏫, 😴, 🦗🦗🦗, 🐻, 🦝, 🪑, 💉) prallen zuerst an Meowskulls 😼 ab, dann am Schild 🛡️.<br><br>
+      Ohne Herzen bist du raus und schaust bis zum Ende der Runde zu. <b>Wer als Letztes noch Herzen hat, gewinnt.</b></div>
+      <div class="rules-en">Attacks (e.g. 💀, 🦠, 😱, 👨‍🏫, 😴, 🦗🦗🦗, 🐻, 🦝, 🪑, 💉) first bounce off Meowskulls 😼, then the shield 🛡️.<br><br>
+      Without hearts you're out and watch until the end of the round. <b>The last one with hearts wins.</b></div>
     </details>
     <div style="color:var(--dim); font-size:11px; margin:6px 0 14px;">Version <span class="ver"></span></div>
   </div>
@@ -460,17 +461,24 @@ const CARDS = [
   { emoji:"📜", text:"Birkichts Pläne",      eff:"Du bekommst einen geheimen Plan, den du nicht lesen kannst",  zh:"比尔基希特的计划", zeff:"你得到一张看不懂的秘密计划" },
   { emoji:"🗺️", text:"Birkichts Geheimplan", eff:"Zwei zufällige Effekte anderer Karten auf einmal",            zh:"秘密计划",     zeff:"两个随机效果同时触发" },
   { emoji:"🗣️", text:"Grigori",              eff:"Streitet mit allen, die blaue Herzen 💙 haben: 👾 oder 🚬",   zh:"格里戈里",     zeff:"和蓝心玩家吵架：👾或🚬" },
+  { emoji:"🦘", text:"Crash Badicoot",       eff:"Nutze den Effekt einer Karte deiner Wahl", pick:true,           zh:"古惑狼",       zeff:"使用你选的一张牌的效果" },
+  { emoji:"💉", text:"Fentanyl",             eff:"Wähl einen Spieler und infizier ihn 🦠", choose:true,          zh:"芬太尼",       zeff:"选一名玩家感染他" },
+  { emoji:"🏓", text:"Boing",                eff:"Der nächste Spieler spielt automatisch eine zufällige Karte",  zh:"波因",         zeff:"下一位玩家自动随机出一张牌" },
+  { emoji:"🖕", text:"Go fuck yourself",     eff:"Alle anderen setzen eine Runde aus",                          zh:"滚开",         zeff:"其他人都跳过一回合" },
+  { emoji:"🥨", text:"Pretzel bites",        eff:"Der nächste Spieler muss ALLE seine Karten spielen",          zh:"椒盐卷饼",     zeff:"下一位玩家必须出所有的牌" },
+  { emoji:"💬", text:"WHATSAPP",             eff:"3 Runden lang ist alles grün 💚",                             zh:"WHATSAPP",     zeff:"3轮内一切变绿💚" },
 ];
 // Anzahl je Karte im Stapel (gleiche Reihenfolge wie oben). 0 = liegt nicht im Stapel.
 const BASE_MIX = [6, 6, 8, 3, 5, 3, 3, 4, 3, 2, 3, 0, 3,  2, 2, 3, 7, 3, 3,  2, 3, 2, 3, 3, 3, 3, 2, 2, 3, 2, 0, 0,  2, 3,  2, 2, 3,  2, 2, 2, 3, 2, 2, 0, 2, 2, 2, 0];
 const DECK_MIX = BASE_MIX.map(n => n * 2);           // alles doppelt
 BASE_MIX.push(2); DECK_MIX.push(4);                  // 🗣️ Grigori
+[2, 3, 3, 2, 2, 2].forEach(n => { BASE_MIX.push(n); DECK_MIX.push(n * 2); });   // Crash, Fentanyl, Boing, GFY, Pretzel, WhatsApp
 DECK_MIX[35] = 1;                                    // 🤡 Clownchan nur einmal
 DECK_MIX[38] = 0;                                    // 🚬 nur während Herr Rittner
 DECK_MIX[40] = 0;                                    // 🪙 erst nach Schneeball System
 const SCHOKO = 11, SCHOKO_CHANCE = 0.0001, GRILL = 16, LEON = 10, FREDDY = 17;
 const SMARTER = 32, BEER = 33, GINGER = 34, CLOWN = 35, MACJ = 36, CLOWN_CHANCE = 0.05;
-const GRIGORI = 48;
+const GRIGORI = 48, CRASH = 49, FENT = 50, BOING = 51, GFY = 52, PRETZEL = 53, WAPP = 54;
 const RITTNER = 37, CIG = 38, SNOWBALL = 39, BTC = 40, DOG = 41, MINECARD = 42, MINE = 43, RIDE = 44, PATTERN = 45, PLANS = 46, PLAN = 47;
 const HEAL_CARDS = [1, 9, 22, 33], GOOD_CARDS = [1, 4, 9, 15, 22, 33];
 const MODDED = 19, PASCAL = 20, KEVIN = 21, DONER = 22, WANU = 23, CHAIR = 24, TORKE = 25, SPECK = 26, LEUTRIM = 27, RCD = 28, BARTHEL = 29, TASK = 30, SOLUTION = 31;
@@ -487,12 +495,12 @@ const N = 6;                                         // Plätze im Raum
 const SEATS = [...Array(N).keys()];
 const HAND_MAX = 3;
 const MAX_HEARTS = 3;
-const MODES = { classic:'Classic', normal:'Normal', chaos:'Chaos', roulette:'Russian Roulette' };
+const MODES = { classic:'Classic', normal:'Normal', chaos:'Chaos', blind:'Blind', quick:'Quickplay', roulette:'Russian Roulette' };
 const curMode = () => (typeof S !== 'undefined' && S && S.cfg) ? S.cfg.mode : (typeof V !== 'undefined' && V && V.mode) || 'normal';
 const handMax = () => curMode() === 'roulette' ? 1 : HAND_MAX;
-const maxHearts = () => curMode() === 'roulette' ? 1 : MAX_HEARTS;
-const VERSION = 16;   // Spiel-Protokoll: bei jeder Regeländerung erhöhen – alte und neue Version können nicht zusammen spielen
-const VERSION_LABEL = '16.1';   // angezeigte Version (Bugfixes ändern nur diese Zahl)
+const maxHearts = () => curMode() === 'roulette' ? 1 : curMode() === 'quick' ? 2 : MAX_HEARTS;
+const VERSION = 17;   // Spiel-Protokoll: bei jeder Regeländerung erhöhen – alte und neue Version können nicht zusammen spielen
+const VERSION_LABEL = '17';   // angezeigte Version (Bugfixes ändern nur diese Zahl)
 const $ = id => document.getElementById(id);
 
 const shuffle = a => { for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
@@ -510,6 +518,7 @@ function buildMix(){
     if (cfg.off.includes(k)) n = 0;
     if (cfg.mode === 'classic' && k > 20) n = 0;
     if (cfg.mode === 'chaos' && KIND(k) === 'chaos') n *= 3;
+    if (cfg.mode === 'quick' && KIND(k) === 'atk') n *= 2;
     if (st && st.extra && st.extra[k] && !cfg.off.includes(k)) n += st.extra[k];
     return n;
   });
@@ -536,7 +545,7 @@ function myName(){
   try { localStorage.setItem('dk-name', n); } catch(e) {}
   return n;
 }
-function lobbyError(msg){ $('lobbyErr').textContent = msg; $('hostBtn').disabled = $('joinBtn').disabled = false; }
+function lobbyError(msg){ $('lobbyErr').dataset.raw = msg; $('lobbyErr').textContent = tr(msg); $('hostBtn').disabled = $('joinBtn').disabled = false; }
 
 // ================= HOST: Spiellogik =================
 const newPlayer = (name, waiting=false, bot=false) => ({ name, bot, hearts: waiting ? 0 : maxHearts(), infected:0, pending:0, shield:false, reflect:false,
@@ -581,7 +590,8 @@ function checkWin(){
 const PASCAL_LOOKS = CARDS.map((_, k) => k).filter(k => ![PASCAL, SCHOKO, TASK, SOLUTION, GRILL, CIG, MINE, PLAN].includes(k));
 const FX_POOL = PASCAL_LOOKS.filter(k => k !== CLOWN);              // Karten, deren Effekt Pascal & Geheimplan auslösen können
 const inMode = list => { const m = buildMix(), l = list.filter(k => m[k] > 0); return l.length ? l : list; };   // nur Karten aus dem aktuellen Deck
-function randArg(c, seat){ return CARDS[c].choose ? pickTarget(c, seat) : CARDS[c].options ? Math.floor(Math.random()*2) : -1; }
+function randArg(c, seat){ return CARDS[c].choose ? pickTarget(c, seat) : CARDS[c].options ? Math.floor(Math.random()*2) : CARDS[c].pick ? pick(crashPool()) : -1; }
+const crashPool = () => inMode(FX_POOL).filter(k => k !== CRASH);   // was Crash Badicoot nachmachen darf
 function dressed(c){
   if (c === PASCAL) return mk(c, false, Math.random() < 0.7 ? GRILL : pick(inMode(PASCAL_LOOKS)));   // 70 % sieht aus wie Grillenberger
   if (c === KEVIN)  return mk(c, false, DONER);                                              // sieht aus wie Dönerspieß
@@ -756,7 +766,7 @@ function startGame(){
   S.hands = SEATS.map(() => []);
   S.mix = null;
   S.extra = {}; S.mix = null;
-  Object.assign(S, { deck:newDeck(buildMix()), pile:[], winner:null, round:Date.now(), dir:1, zh:0, link:null, freddy:null, phase:'play', bg:-1, leutrim:[], lastCard:-1, turnNo:0, rittnerUntil:0, patternUntil:0, btc:0 });
+  Object.assign(S, { deck:newDeck(buildMix()), pile:[], winner:null, round:Date.now(), dir:1, zh:0, link:null, freddy:null, phase:'play', bg:-1, leutrim:[], lastCard:-1, turnNo:0, rittnerUntil:0, patternUntil:0, btc:0, wa:0, extraTurn:null });
   beginTurn(pick(aliveSeats(S)));
   log({ sys:`🃏 Neue Runde! ${S.seats[S.turn].name} fängt an.` });
   broadcast();
@@ -802,7 +812,7 @@ function freddyCheck(seat, entry){
 }
 
 // Wirkung einer Karte. Gibt { res, target, fid, end } zurück.
-function effect(seat, c, tgt){
+function effect(seat, c, tgt, depth = 0){
   const me = S.seats[seat];
   const nextP = () => S.seats[nextAliveSeat(S, seat)];
   const chosen = tgt >= 0 ? S.seats[tgt] : null;
@@ -863,7 +873,12 @@ function effect(seat, c, tgt){
       S.freddy = { by: seat, fake: pick(fakes), id: fid };
       return { target:p.name, fid, res:`${p.name} verliert 1 Herz, sobald er eine Karte legt 🐻` };
     }
-    case 18: { S.link = { a: seat, b: tgt }; return { target:chosen.name, res:`${me.name} und ${chosen.name} teilen sich bis zu ${me.name}s nächstem Zug Schaden und Heilung 🔗` }; }
+    case 18: {
+      S.link = { a: seat, b: tgt };
+      LINK_FLAGS.forEach(k => { if (me[k] || chosen[k]) { me[k] = true; chosen[k] = true; } });   // Status-Effekte zusammenlegen
+      if (me.color || chosen.color) { const col = chosen.color || me.color; me.color = col; chosen.color = col; }
+      return { target:chosen.name, res:`${me.name} und ${chosen.name} teilen sich bis zu ${me.name}s nächstem Zug Schaden, Heilung und alle Status-Effekte 🔗` };
+    }
     case MODDED: {
       if (!Array.isArray(S.bgUsed)) S.bgUsed = [];
       let free = [...Array(BG_COUNT).keys()].filter(k => !S.bgUsed.includes(k));
@@ -1007,6 +1022,35 @@ function effect(seat, c, tgt){
       });
       return { res:'🗣️ streitet mit allen mit blauen Herzen: ' + parts.join(' | ') };
     }
+    case CRASH: {                                  // 🦘 Effekt einer Wunschkarte
+      const r = crashPool().includes(tgt) ? tgt : pick(crashPool());
+      const inner = effect(seat, r, randArg(r, seat), depth + 1);
+      return { ...inner, res:`🦘 nutzt ${CARDS[r].emoji} „${CARDS[r].text}“ → ${inner.res}` };
+    }
+    case FENT: return { target:chosen.name, res: attack(me, chosen, infect) };
+    case BOING: {                                  // 🏓 Nächster spielt automatisch eine zufällige Karte
+      const ni = nextAliveSeat(S, seat), p = S.seats[ni];
+      return { target:p.name, res: attack(me, p, t => {
+        const ti = seatIdx(t);
+        if (!S.hands[ti].length) return `${t.name} hat keine Karten 🏓`;
+        return `🏓 ${t.name} muss spielen: ${forcePlay(ti, Math.floor(Math.random() * S.hands[ti].length), depth)}`;
+      }) };
+    }
+    case GFY: {                                    // 🖕 alle anderen setzen aus
+      const others = aliveSeats(S).filter(i => i !== seat);
+      others.forEach(i => { S.seats[i].skip = true; });
+      return { res:`🖕 alle anderen (${others.map(i => S.seats[i].name).join(', ')}) setzen eine Runde aus` };
+    }
+    case PRETZEL: {                                // 🥨 Nächster muss alle Karten spielen
+      const ni = nextAliveSeat(S, seat), p = S.seats[ni];
+      return { target:p.name, res: attack(me, p, t => {
+        const ti = seatIdx(t), parts = [];
+        if (!S.hands[ti].length) return `${t.name} hat keine Karten 🥨`;
+        for (let k = 0; k < 3 && S.hands[ti].length && S.phase === 'play' && t.alive; k++) parts.push(forcePlay(ti, 0, depth));
+        return `🥨 ${t.name} muss alle Karten spielen: ${parts.join(' | ')}`;
+      }) };
+    }
+    case WAPP: { S.wa = S.turnNo + 3 * aliveSeats(S).length + 1; return { res:'💬 WHATSAPP! 3 Runden lang ist alles grün 💚' }; }
     case BEER: {                                   // 🍺 bis 3 Bier heilt, danach tut es weh
       me.beer = (me.beer || 0) + 1;
       if (me.beer <= 3) { const h = heal(me); return { res:`trinkt Bier Nr. ${me.beer} 🍺 – ${h === 'heal' ? 'ein grünes Herz wird wieder rot ❤️' : h === 'plus' ? `+1 Herz (${H(me.hearts)})` : 'aber hat schon volle Herzen'}` }; }
@@ -1026,8 +1070,43 @@ function effect(seat, c, tgt){
 
 function finishPlay(seat){
   knockOutDead();
-  if (!checkWin()) advance(seat);
+  if (!checkWin()) {
+    if (S.extraTurn === seat && S.seats[seat].alive) { S.extraTurn = null; log({ sys:`🔄 Nur noch zwei Spieler – ${S.seats[seat].name} ist nochmal dran!` }); beginTurn(seat); }
+    else { S.extraTurn = null; advance(seat); }
+  }
   broadcast();
+}
+// ---- 🔗 Goonnectet: Status-Effekte werden geteilt ----
+const LINK_FLAGS = ['shield', 'reflect', 'skip', 'fur', 'trap'];
+function linkSnap(){
+  if (!S.link) return null;
+  return [S.link.a, S.link.b].map(i => { const p = S.seats[i]; return p ? { shield:p.shield, reflect:p.reflect, skip:p.skip, fur:p.fur, trap:p.trap, color:p.color, luckUntil:p.luckUntil, taskUntil:p.taskUntil, infected:p.infected } : null; });
+}
+function linkSync(before){
+  if (!before || !S.link) return;
+  const ps = [S.seats[S.link.a], S.seats[S.link.b]];
+  if (!ps[0] || !ps[1] || !ps[0].alive || !ps[1].alive) return;
+  let shared = false;
+  const now = linkSnap();                          // Stand nach der Karte, bevor geteilt wird
+  [0, 1].forEach(j => {
+    const p = now[j], q = ps[1 - j], b = before[j]; if (!b) return;
+    LINK_FLAGS.forEach(k => { if (p[k] && !b[k] && !q[k]) { q[k] = true; shared = true; } });
+    if (p.color && p.color !== b.color && q.color !== p.color) { q.color = p.color; shared = true; }
+    ['luckUntil', 'taskUntil'].forEach(k => { if (p[k] > b[k] && p[k] > q[k]) { q[k] = p[k]; shared = true; } });
+    const di = p.infected - b.infected;
+    if (di > 0 && q.infected < q.hearts) { const add = Math.min(di, q.hearts - q.infected); q.infected += add; q.pending = (q.pending || 0) + add; shared = true; }
+  });
+  if (shared) log({ sys:`🔗 ${ps[0].name} und ${ps[1].name} sind verbunden und teilen sich die Status-Effekte.` });
+}
+// ---- 🏓 / 🥨: ein Spieler muss eine Karte spielen (zufälliges Ziel) ----
+function forcePlay(i, idx, depth){
+  const h = S.hands[i];
+  if (idx < 0 || idx >= h.length) return '';
+  const x = h.splice(idx, 1)[0], c = cardOf(x);
+  if (c !== LEUTRIM && c !== CLOWN) { S.pile.push(c); S.pile = S.pile.slice(-4); }
+  if ((c === BOING || c === PRETZEL) && depth >= 2) return `${CARDS[c].emoji} „${CARDS[c].text}“ → verpufft`;
+  const r = effect(i, c, randArg(c, i), depth + 1);
+  return `${CARDS[c].emoji} „${CARDS[c].text}“ → ${r.res}`;
 }
 
 function doPlay(seat, idx, tgt, all3){
@@ -1036,7 +1115,7 @@ function doPlay(seat, idx, tgt, all3){
 
   // 🦗🦗🦗 Grillenberger-Kombo: alle drei auf einmal (aber vielleicht ist ein Pascal dabei …)
   if (all3) {
-    if (hand.length !== 3 || !hand.every(x => shownTo(x) === GRILL)) return;
+    if (S.cfg.mode === 'blind' || hand.length !== 3 || !hand.every(x => shownTo(x) === GRILL)) return;
     const real = hand.map(cardOf); hand.length = 0;
     S.pile.push(GRILL, GRILL, GRILL); S.pile = S.pile.slice(-4);
     const entry = log({ name: me.name, c: GRILL, res:'…', combo:true });
@@ -1055,8 +1134,9 @@ function doPlay(seat, idx, tgt, all3){
   }
 
   if (!Number.isInteger(idx) || idx < 0 || idx >= hand.length) return;
-  const x = hand[idx], c = cardOf(x), shown = shownTo(x);
+  const x = hand[idx], c = cardOf(x), shown = S.cfg.mode === 'blind' ? -1 : shownTo(x);
   if (shown >= 0 && CARDS[shown].options && ![0, 1].includes(tgt)) return;   // Hund: Wahl fehlt
+  if (shown >= 0 && CARDS[shown].pick && !crashPool().includes(tgt)) return;   // Crash: Karte fehlt
   if (shown >= 0 && CARDS[shown].choose) {          // der Spieler glaubt, er muss ein Ziel wählen
     const l = eligible(shown, seat);
     if (l.length && !l.includes(tgt)) return;
@@ -1067,8 +1147,12 @@ function doPlay(seat, idx, tgt, all3){
   const entry = log({ name: me.name, c, hid: isHidden(x), dis: (!isHidden(x) && d !== null) ? d : undefined, res:'…' });
   if (freddyCheck(seat, entry) || checkWin()) { if (S.phase === 'over' && entry.res === '…') entry.res = 'zu spät – das Spiel ist schon vorbei 🐻'; return finishPlay(seat); }
   const t = CARDS[c].choose ? pickTarget(c, seat, shown === c ? tgt : undefined)
-          : CARDS[c].options ? (shown === c && [0, 1].includes(tgt) ? tgt : Math.floor(Math.random()*2)) : -1;
+          : CARDS[c].options ? (shown === c && [0, 1].includes(tgt) ? tgt : Math.floor(Math.random()*2))
+          : CARDS[c].pick ? (shown === c && crashPool().includes(tgt) ? tgt : pick(crashPool())) : -1;
+  const snap = linkSnap();
   const r = effect(seat, c, t);
+  linkSync(snap);
+  if (c === LEON && S.phase === 'play' && aliveSeats(S).length === 2 && me.alive) S.extraTurn = seat;   // Leon bei 2 Spielern: nochmal dran
   entry.res = r.res; if (r.target) entry.target = r.target; if (r.fid) entry.fid = r.fid;
   S.lastCard = c;
   if (r.end) return broadcast();
@@ -1113,7 +1197,7 @@ function scheduleBot(){
   if (key === botKey) return;
   botKey = key;
   clearTimeout(botTimer);
-  botTimer = setTimeout(() => botMove(t), 900 + Math.random()*900);
+  botTimer = setTimeout(() => botMove(t), S.cfg.mode === 'quick' ? 350 + Math.random()*350 : 900 + Math.random()*900);
 }
 function botMove(seat){
   if (S.phase !== 'play' || effTurn(S) !== seat) return;
@@ -1123,7 +1207,7 @@ function botMove(seat){
 }
 // einfacher Bot: sieht nur, was ein Mensch auch sehen würde (Tarnkarten täuschen ihn genauso)
 function botDecide(seat){
-  const me = S.seats[seat], seen = S.hands[seat].map(shownTo);
+  const me = S.seats[seat], seen = S.hands[seat].map(x => S.cfg.mode === 'blind' ? -1 : shownTo(x));
   if (seen.length === 3 && seen.every(c => c === GRILL)) return { all3:true };
   const others = aliveSeats(S).filter(i => i !== seat);
   const red = me.hearts - me.infected, hurtMe = me.hearts < maxHearts() || me.infected > 0;
@@ -1135,6 +1219,9 @@ function botDecide(seat){
     if (c === DOG) return 0;
     if (c === MINECARD) return 3;
     if (c === GRIGORI) return 1;
+    if ([FENT, BOING, PRETZEL].includes(c)) return 4;
+    if (c === GFY) return 5;
+    if (c === CRASH) return 4;
     if ([RITTNER, SNOWBALL, PLANS].includes(c)) return 2;
     if (c === MACJ) return 3;
     if (c === BEER) return (me.beer || 0) >= 3 ? (me.hearts > 1 ? -2 : -20) : (hurtMe ? 8 : 0);
@@ -1160,6 +1247,7 @@ function botDecide(seat){
   const c = seen[bi];
   let t;
   if (c >= 0 && CARDS[c].options) t = 0;                            // Bot erschießt lieber den Hund
+  if (c >= 0 && CARDS[c].pick) t = pick(crashPool().filter(k => hurtMe ? [1, 9, 22].includes(k) : [2, 7, 24].includes(k)).concat(crashPool()).slice(0, 4));
   if (c >= 0 && CARDS[c].choose) {
     const l = eligible(c, seat);
     if (c === WANU) t = Math.random() < 0.6 ? l.sort((a, b) => S.hands[b].length - S.hands[a].length)[0] : pick(l);
@@ -1231,15 +1319,15 @@ function pub(topic, obj){
 function netState(ok){
   if (!roomCode || closed) return;
   const e = $('gameErr');
-  if (!ok) e.textContent = 'Verbindung unterbrochen – verbinde neu …';
-  else if (e.textContent.startsWith('Verbindung unterbrochen')) e.textContent = '';
+  if (!ok) { e.dataset.raw = 'Verbindung unterbrochen – verbinde neu …'; e.textContent = tr(e.dataset.raw); }
+  else if (e.dataset.raw && e.dataset.raw.startsWith('Verbindung unterbrochen')) { e.dataset.raw = ''; e.textContent = ''; }
 }
 
 // ---------- HOST ----------
 const guests = {};   // Platz -> { id, last }   (Bots sind keine Gäste)
 async function hostGame(){
   $('hostBtn').disabled = $('joinBtn').disabled = true;
-  $('lobbyErr').textContent = 'Raum wird erstellt …';
+  $('lobbyErr').dataset.raw = 'Raum wird erstellt …'; $('lobbyErr').textContent = tr('Raum wird erstellt …');
   const code = randomCode();
   try {
     await deriveRoom(code);
@@ -1303,7 +1391,7 @@ function hostDrop(i){
 function viewFor(seat){
   const f = S.freddy, disguise = f && f.by !== seat;
   return {
-    phase:S.phase, mode:S.cfg.mode, offCount:S.cfg.off.length, turn:S.turn, dir:S.dir, rittner:Math.max(0, S.rittnerUntil - S.turnNo), pattern:Math.max(0, S.patternUntil - S.turnNo), btc:S.btc || 0, step:S.step, drew:S.drew, winner:S.winner, round:S.round, zh:S.zh, bg:S.bg, leutrim:S.leutrim.length,
+    phase:S.phase, mode:S.cfg.mode, pool:crashPool(), wa:Math.max(0, (S.wa || 0) - S.turnNo), offCount:S.cfg.off.length, turn:S.turn, dir:S.dir, rittner:Math.max(0, S.rittnerUntil - S.turnNo), pattern:Math.max(0, S.patternUntil - S.turnNo), btc:S.btc || 0, step:S.step, drew:S.drew, winner:S.winner, round:S.round, zh:S.zh, bg:S.bg, leutrim:S.leutrim.length,
     link: S.link ? { a:S.link.a, b:S.link.b } : null,
     pile: S.pile.map(c => disguise && c === FREDDY ? f.fake : c),
     log: S.log.map(e => {
@@ -1318,7 +1406,7 @@ function viewFor(seat){
       const clown = S.hands[i].some(x => cardOf(x) === CLOWN && !isHidden(x));
       return { ...pub, cards: S.hands[i].length, pascal, clown };
     }),
-    deckCount:S.deck.length, hand: (S.hands[seat] || []).map(shownTo),   // geheime Karten (-1) kennt nicht mal der Besitzer
+    deckCount:S.deck.length, hand: (S.hands[seat] || []).map(x => S.cfg.mode === 'blind' ? -1 : shownTo(x)),   // geheime Karten (-1) kennt nicht mal der Besitzer
   };
 }
 function broadcast(){
@@ -1333,7 +1421,7 @@ async function joinGame(){
   const code = $('codeIn').value.trim().toUpperCase();
   if (!/^[A-Z0-9]{6}$/.test(code)) return lobbyError('Bitte den 6-stelligen Raum-Code eingeben.');
   $('hostBtn').disabled = $('joinBtn').disabled = true;
-  $('lobbyErr').textContent = 'Verbinde …';
+  $('lobbyErr').dataset.raw = 'Verbinde …'; $('lobbyErr').textContent = tr('Verbinde …');
   try {
     await deriveRoom(code);
     mq = await connectBroker({ topic: T(code,'up'), payload: await seal({ t:'bye', from:myId }), qos:1, retain:false });
@@ -1369,7 +1457,7 @@ function startGuestTick(){
 function roomClosed(msg){
   if (closed) return;
   closed = true;
-  $('gameErr').textContent = msg;
+  $('gameErr').dataset.raw = msg; $('gameErr').textContent = tr(msg);
   disableAll();
 }
 // Handy war im Hintergrund -> beim Zurückkommen sofort melden
@@ -1395,7 +1483,8 @@ function sanitize(d){
   });
   s.turn = intIn(d.turn, 0, N-1, 0);
   s.dir = d.dir === -1 ? -1 : 1;
-  s.zh = intIn(d.zh, 0, 99, 0);
+  s.zh = intIn(d.zh, 0, 99, 0); s.wa = intIn(d.wa, 0, 99, 0);
+  s.pool = Array.isArray(d.pool) ? d.pool.filter(isCard).slice(0, 80) : [];
   s.mode = MODES[d.mode] ? d.mode : 'normal'; s.offCount = intIn(d.offCount, 0, 99, 0);
   s.rittner = intIn(d.rittner, 0, 999, 0); s.pattern = intIn(d.pattern, 0, 999, 0); s.btc = intIn(d.btc, 0, 99, 0);
   s.bg = intIn(d.bg, -1, BG_COUNT-1, -1);
@@ -1405,9 +1494,9 @@ function sanitize(d){
   s.drew = !!d.drew;
   if (Array.isArray(d.pile)) s.pile = d.pile.filter(isCard).slice(-4);
   if (Array.isArray(d.log)) s.log = d.log.slice(-40).map(e =>
-      e && typeof e.sys==='string' ? { sys:e.sys.slice(0,200) }
+      e && typeof e.sys==='string' ? { sys:e.sys.slice(0,300) }
     : e && isCard(e.c) ? { name: cleanName(e.name), c:e.c, hid: !!e.hid, combo: !!e.combo, dis: isCard(e.dis) ? e.dis : undefined,
-                          target: typeof e.target==='string' ? cleanName(e.target) : null, res: typeof e.res==='string' ? e.res.slice(0,300) : '' } : null).filter(Boolean);
+                          target: typeof e.target==='string' ? cleanName(e.target) : null, res: typeof e.res==='string' ? e.res.slice(0,1200) : '' } : null).filter(Boolean);
   s.winner = typeof d.winner==='string' ? cleanName(d.winner) : null;
   s.round = typeof d.round==='number' ? d.round : 0;
   s.deckCount = intIn(d.deckCount, 0, 999, 0);
@@ -1426,25 +1515,30 @@ function enterGame(){
 function disableAll(){ ['drawBtn','playBtn','passBtn','startBtn','botBtn'].forEach(id => $(id).disabled = true); }
 
 const ZH = () => !!(V && V.zh > 0);
-const L = (de, zh) => ZH() ? zh : de;
+const L = (de, zh, en) => ZH() ? zh : (EN() && en !== undefined) ? en : de;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const cname = c => `${CARDS[c].emoji} „${ZH() ? CARDS[c].zh : CARDS[c].text}“`;
+const cname = c => EN() && !ZH() ? `${CARDS[c].emoji} “${cardName(c)}”` : `${CARDS[c].emoji} „${cardName(c)}“`;
 
 function cardEl(c){
   const d = document.createElement('div');
   if (c === -1) {                                  // geheime Karte
     d.className = 'card flipped flat mystery';
     d.innerHTML = '<div class="inner"><div class="face back"></div><div class="face front"><div class="emoji">❓</div><div class="txt">???</div><div class="eff"></div></div></div>';
-    d.querySelector('.eff').textContent = L('Geheime Karte – erst nach dem Ausspielen siehst du, was es war', '秘密牌');
+    d.querySelector('.eff').textContent = L('Geheime Karte – erst nach dem Ausspielen siehst du, was es war', '秘密牌', 'Secret card – you only find out what it was after playing it');
     return d;
   }
   d.className = 'card flipped flat' + (c === TASK ? ' task' : '');
   d.innerHTML = `<div class="inner"><div class="face back"></div><div class="face front"><div class="emoji"></div><div class="txt"></div><div class="eff"></div></div></div>`;
   d.querySelector('.emoji').textContent = CARDS[c].emoji;
-  d.querySelector('.txt').textContent = ZH() ? CARDS[c].zh : CARDS[c].text;
-  const maxW = ZH() ? 0 : Math.max(...CARDS[c].text.split(' ').map(w => w.length));
+  d.querySelector('.txt').textContent = cardName(c);
+  const maxW = ZH() ? 0 : Math.max(...cardName(c).split(' ').map(w => w.length));
   if (maxW > 12) d.querySelector('.txt').classList.add('long'); else if (maxW > 8) d.querySelector('.txt').classList.add('mid');
-  d.querySelector('.eff').textContent = ZH() ? CARDS[c].zeff : CARDS[c].eff;
+  d.querySelector('.eff').textContent = cardEff(c);
+  if (hasPic(c)) {                                 // Bild-Design: Name oben, Bild in der Mitte, Effekt unten
+    d.classList.add('pic');
+    const im = document.createElement('div'); im.className = 'picimg'; im.style.backgroundImage = `url(img/cards/${c}.jpg)`;
+    d.querySelector('.front').insertBefore(im, d.querySelector('.eff'));
+  }
   return d;
 }
 function heartsStr(p){
@@ -1474,10 +1568,11 @@ function render(){
   const players = V.seats.filter(Boolean).length;
   const myTurn = t >= 0 && t === mySeat;
   setBg(V.bg);
+  document.body.classList.toggle('wa', V.wa > 0 && V.phase === 'play');
 
   // Gewinner-Banner
   const ban = $('banner');
-  if (V.phase === 'over') { ban.classList.remove('hidden'); const lastSys = (V.log.at(-1) || {}).sys || ''; ban.textContent = V.winner ? `🏆 ${V.winner} gewinnt!` : lastSys.startsWith('🍫') ? '🍫 Schokokuss! Niemand gewinnt.' : '🤝 Unentschieden!'; }
+  if (V.phase === 'over') { ban.classList.remove('hidden'); const lastSys = (V.log.at(-1) || {}).sys || ''; ban.textContent = V.winner ? L(`🏆 ${V.winner} gewinnt!`, `🏆 ${V.winner} 赢了！`, `🏆 ${V.winner} wins!`) : lastSys.startsWith('🍫') ? L('🍫 Schokokuss! Niemand gewinnt.', '🍫 没人赢。', '🍫 Chocolate kiss! Nobody wins.') : L('🤝 Unentschieden!', '🤝 平局！', '🤝 Draw!'); }
   else ban.classList.add('hidden');
 
   // Spieler (6 Plätze)
@@ -1486,21 +1581,21 @@ function render(){
     const p = V.seats[i], el = document.createElement('div');
     el.className = 'player' + (i===t ? ' active' : '') + (i===mySeat ? ' me' : '') + (!p ? ' free' : '')
       + (p && V.phase!=='lobby' && !p.alive ? ' out' : '') + (p && V.phase==='over' && p.alive ? ' winner' : '');
-    const nm = document.createElement('div'); nm.className='nm'; nm.textContent = p ? (p.bot ? '🤖 ' : '') + p.name + (i===0 ? ' 👑' : '') : L('Platz frei', '空位');
+    const nm = document.createElement('div'); nm.className='nm'; nm.textContent = p ? (p.bot ? '🤖 ' : '') + p.name + (i===0 ? ' 👑' : '') : L('Platz frei', '空位', 'Free seat');
     const hs = document.createElement('div'); hs.className='hearts'; hs.textContent = p ? heartsStr(p) : '';
     const st = document.createElement('div'); st.className='cnt';
     const info = [];
-    if (!p) info.push(L('wartet …', '等待中…'));
-    else if (p.waiting) info.push(L('spielt nächste Runde mit', '下一轮加入'));
-    else if (V.phase==='play' && !p.alive) info.push(L('raus', '出局'));
+    if (!p) info.push(L('wartet …', '等待中…', 'waiting …'));
+    else if (p.waiting) info.push(L('spielt nächste Runde mit', '下一轮加入', 'joins next round'));
+    else if (V.phase==='play' && !p.alive) info.push(L('raus', '出局', 'out'));
     else {
       if (V.phase==='play') info.push(`🃏 ${p.cards}`);
       if (p.pascal) info.push('🎭'.repeat(p.pascal));
       if (p.clown) info.push('🤡');
       if (p.luck) info.push('🍀');
       if (p.tasks) info.push('📄');
-      if (p.infected) info.push(L('infiziert!', '感染了！'));
-      if (p.skip) info.push(L('😴 setzt aus', '😴 跳过'));
+      if (p.infected) info.push(L('infiziert!', '感染了！', 'infected!'));
+      if (p.skip) info.push(L('😴 setzt aus', '😴 跳过', '😴 skips'));
       if (p.fur) info.push('🦊');
       if (p.beer) info.push('🍺'.repeat(Math.min(p.beer, 5)) + (p.beer > 5 ? '…' : ''));
       if (V.link && (V.link.a === i || V.link.b === i)) { const o = V.seats[V.link.a === i ? V.link.b : V.link.a]; if (o) info.push('🔗 ' + o.name); }
@@ -1529,30 +1624,30 @@ function render(){
     el.onclick = () => { sel = (sel === i ? null : i); render(); };
     h.appendChild(el);
   });
-  for (let i = hand.length; i < handMax(); i++) { const e = document.createElement('div'); e.className = 'empty slotfree'; e.textContent = L('frei', '空'); h.appendChild(e); }
+  for (let i = hand.length; i < handMax(); i++) { const e = document.createElement('div'); e.className = 'empty slotfree'; e.textContent = L('frei', '空', 'free'); h.appendChild(e); }
   lastHand = hand.slice();
   const me = V.seats[mySeat];
-  $('handLbl').textContent = me && me.alive && V.phase === 'play' ? L(`Deine Karten (${hand.length}/${handMax()}) – nur du siehst sie · antippen zum Auswählen`, `你的牌 (${hand.length}/${handMax()}) – 点击选择`) : L('Deine Karten', '你的牌');
+  $('handLbl').textContent = me && me.alive && V.phase === 'play' ? L(`Deine Karten (${hand.length}/${handMax()}) – nur du siehst sie · antippen zum Auswählen`, `你的牌 (${hand.length}/${handMax()}) – 点击选择`, `Your cards (${hand.length}/${handMax()}) – only you can see them · tap to select`) : L('Deine Karten', '你的牌', 'Your cards');
 
   // Ablage
   const pile = $('pile'); pile.innerHTML='';
-  if (!V.pile.length) pile.innerHTML = '<div class="empty">Leer</div>';
+  if (!V.pile.length) pile.innerHTML = `<div class="empty">${L('Leer', '空', 'Empty')}</div>`;
   V.pile.forEach((c,i) => { const el = cardEl(c); el.style.transform = `rotate(${(i - V.pile.length + 1)*(NARROW ? 3 : 5) + ((c*13+i*7)%3-1)}deg)`; pile.appendChild(el); });
 
   // Protokoll
   const log = $('log'); log.innerHTML='';
-  if (!V.log.length) log.innerHTML = '<div style="color:var(--dim)">Noch nichts passiert.</div>';
+  if (!V.log.length) log.innerHTML = `<div style="color:var(--dim)">${L('Noch nichts passiert.', '还没发生什么。', 'Nothing happened yet.')}</div>`;
   V.log.slice().reverse().forEach(e => {
     const d = document.createElement('div');
-    if (e.sys) { d.style.color = 'var(--dim)'; d.textContent = e.sys; }
+    if (e.sys) { d.style.color = 'var(--dim)'; d.textContent = tr(e.sys); }
     else {
       const n = document.createElement('span'); n.className='n'; n.textContent = e.name; d.appendChild(n);
       let what;
-      if (e.combo) what = ` ${L('spielt', '出了')} 🦗🦗🦗`;
-      else if (e.hid) what = ` ${L('spielt eine geheime Karte ❓ – es war', '出了一张秘密牌 ❓ –')} ${cname(e.c)}`;
-      else if (e.dis !== undefined) what = ` ${L('spielt', '出了')} ${cname(e.dis)} – ${L('Überraschung, es war', '惊喜！其实是')} ${cname(e.c)}`;
-      else what = ` ${L('spielt', '出了')} ${cname(e.c)}`;
-      d.append(`${what} → ${e.res}`);
+      if (e.combo) what = ` ${L('spielt', '出了', 'plays')} 🦗🦗🦗`;
+      else if (e.hid) what = ` ${L('spielt eine geheime Karte ❓ – es war', '出了一张秘密牌 ❓ –', 'plays a secret card ❓ – it was')} ${cname(e.c)}`;
+      else if (e.dis !== undefined) what = ` ${L('spielt', '出了', 'plays')} ${cname(e.dis)} – ${L('Überraschung, es war', '惊喜！其实是', 'surprise, it was')} ${cname(e.c)}`;
+      else what = ` ${L('spielt', '出了', 'plays')} ${cname(e.c)}`;
+      d.append(`${what} → ${tr(e.res)}`);
     }
     log.appendChild(d);
   });
@@ -1560,36 +1655,38 @@ function render(){
   // Status + Knöpfe
   const grill3 = hand.length === 3 && hand.every(c => c === GRILL);
   $('deckCount').textContent = V.deckCount;
-  $('deckLbl').textContent = L('Stapel', '牌堆'); $('pileLbl').textContent = L('Zuletzt gespielt', '最近出的牌');
-  $('drawBtn').textContent = L('Karte ziehen', '抽牌'); $('playBtn').textContent = L('Ausspielen', '出牌'); $('passBtn').textContent = L('Zug beenden', '结束回合');
+  $('deckLbl').textContent = L('Stapel', '牌堆', 'Deck'); $('pileLbl').textContent = L('Zuletzt gespielt', '最近出的牌', 'Last played');
+  $('drawBtn').textContent = L('Karte ziehen', '抽牌', 'Draw card'); $('playBtn').textContent = L('Ausspielen', '出牌', 'Play'); $('passBtn').textContent = L('Zug beenden', '结束回合', 'End turn');
   const zi = $('zhInfo'); zi.classList.toggle('hidden', !ZH() || V.phase !== 'play');
-  zi.textContent = `🀄 Herr Günther: Das Spiel ist auf Chinesisch – noch ${V.zh} ${V.zh === 1 ? 'Zug' : 'Züge'}`;
+  zi.textContent = EN() ? `🀄 Mr. Günther: the game is in Chinese – ${V.zh} more ${V.zh === 1 ? 'turn' : 'turns'}` : `🀄 Herr Günther: Das Spiel ist auf Chinesisch – noch ${V.zh} ${V.zh === 1 ? 'Zug' : 'Züge'}`;
   const st = $('status'); st.innerHTML = '';
   if (V.phase === 'lobby') {
-    st.textContent = players < 2 ? (isHost ? 'Warte auf Mitspieler … schick ihnen den Code oder Link – oder füg Bots hinzu!' : 'Warte auf Mitspieler …')
-      : isHost ? `${players} Spieler da – starte das Spiel, wenn alle bereit sind.` : `${players} Spieler da – warte, bis ${V.seats[0] ? V.seats[0].name : 'der Ersteller'} das Spiel startet.`;
-    st.textContent += ` · Modus: ${MODES[V.mode]}` + (V.offCount && V.mode !== 'roulette' ? ` (${V.offCount} Karten raus)` : '');
+    const hn = V.seats[0] ? V.seats[0].name : L('der Ersteller', '房主', 'the host');
+    st.textContent = players < 2 ? (isHost ? L('Warte auf Mitspieler … schick ihnen den Code oder Link – oder füg Bots hinzu!', '', 'Waiting for players … send them the code or link – or add bots!') : L('Warte auf Mitspieler …', '', 'Waiting for players …'))
+      : isHost ? L(`${players} Spieler da – starte das Spiel, wenn alle bereit sind.`, '', `${players} players here – start the game when everyone is ready.`) : L(`${players} Spieler da – warte, bis ${hn} das Spiel startet.`, '', `${players} players here – wait until ${hn} starts the game.`);
+    st.textContent += L(` · Modus: ${MODES[V.mode]}`, '', ` · Mode: ${MODES[V.mode]}`) + (V.offCount && V.mode !== 'roulette' ? L(` (${V.offCount} Karten raus)`, '', ` (${V.offCount} cards removed)`) : '');
   } else if (V.phase === 'over') {
-    st.textContent = isHost ? 'Runde vorbei – starte eine neue Runde!' : 'Runde vorbei – warte auf die nächste Runde.';
+    st.textContent = isHost ? L('Runde vorbei – starte eine neue Runde!', '', 'Round over – start a new round!') : L('Runde vorbei – warte auf die nächste Runde.', '', 'Round over – wait for the next round.');
   } else if (t >= 0) {
     if (myTurn) {
-      if (V.step === 'draw') st.innerHTML = L('<b>Du</b> bist dran – zieh eine Karte!', '<b>轮到你了</b>——抽一张牌！');
+      if (V.step === 'draw') st.innerHTML = L('<b>Du</b> bist dran – zieh eine Karte!', '<b>轮到你了</b>——抽一张牌！', '<b>Your</b> turn – draw a card!');
       else {
         const nextName = esc(V.seats[vNextAlive(V, mySeat)].name);
-        let txt = V.drew ? L('<b>Du</b> bist dran – spiel eine Karte aus oder beende den Zug.', '<b>轮到你了</b>——出一张牌或结束回合。') : L('<b>Deine Hand ist voll</b> – du musst eine Karte ausspielen!', '<b>你的手牌满了</b>——必须出一张牌！');
+        let txt = V.drew ? L('<b>Du</b> bist dran – spiel eine Karte aus oder beende den Zug.', '<b>轮到你了</b>——出一张牌或结束回合。', '<b>Your</b> turn – play a card or end your turn.') : L('<b>Deine Hand ist voll</b> – du musst eine Karte ausspielen!', '<b>你的手牌满了</b>——必须出一张牌！', '<b>Your hand is full</b> – you have to play a card!');
         const sc = sel !== null ? hand[sel] : null;
-        if (sc === -1) txt += L(' <br>Geheime Karte – du weißt erst nach dem Ausspielen, was sie macht!', ' <br>秘密牌！');
-        else if (sc !== null && (CARDS[sc].target || sc === 12 || sc === FREDDY)) txt += L(` <br>Die Karte trifft <b>${nextName}</b>.`, ` <br>这张牌会打中<b>${nextName}</b>。`);
-        else if (sc !== null && CARDS[sc].choose) txt += L(' <br><b>Wen soll es treffen?</b> Tipp unten auf einen Namen.', ' <br><b>选谁？</b>点下面的名字。');
-        if (sc !== null && sc !== -1 && CARDS[sc].options) txt += L(' <br><b>Was machst du mit dem Hund?</b>', ' <br><b>你怎么处理这只狗？</b>');
-        if (sc === GRILL && grill3) txt += L(' <br>🦗🦗🦗 Du hast 3 Grillenberger – spiel alle auf einmal!', ' <br>🦗🦗🦗 三张！');
-        if (sel === null) txt += L(' <br>Tipp eine Karte an.', ' <br>点一张牌。');
+        if (sc === -1) txt += L(' <br>Geheime Karte – du weißt erst nach dem Ausspielen, was sie macht!', ' <br>秘密牌！', ' <br>Secret card – you only find out what it does after playing it!');
+        else if (sc !== null && (CARDS[sc].target || sc === 12 || sc === FREDDY)) txt += L(` <br>Die Karte trifft <b>${nextName}</b>.`, ` <br>这张牌会打中<b>${nextName}</b>。`, ` <br>The card hits <b>${nextName}</b>.`);
+        else if (sc !== null && CARDS[sc].choose) txt += L(' <br><b>Wen soll es treffen?</b> Tipp unten auf einen Namen.', ' <br><b>选谁？</b>点下面的名字。', ' <br><b>Who should it hit?</b> Tap a name below.');
+        if (sc !== null && sc !== -1 && CARDS[sc].pick) txt += L(' <br><b>Such dir unten eine Karte aus.</b>', ' <br><b>选一张牌。</b>', ' <br><b>Pick a card below.</b>');
+        if (sc !== null && sc !== -1 && CARDS[sc].options) txt += L(' <br><b>Was machst du mit dem Hund?</b>', ' <br><b>你怎么处理这只狗？</b>', ' <br><b>What do you do with the dog?</b>');
+        if (sc === GRILL && grill3) txt += L(' <br>🦗🦗🦗 Du hast 3 Grillenberger – spiel alle auf einmal!', ' <br>🦗🦗🦗 三张！', ' <br>🦗🦗🦗 You have 3 Grillenbergers – play them all at once!');
+        if (sel === null) txt += L(' <br>Tipp eine Karte an.', ' <br>点一张牌。', ' <br>Tap a card.');
         st.innerHTML = txt;
       }
     } else {
       const b = document.createElement('b'); b.textContent = V.seats[t].name;
-      st.append(b, V.step === 'draw' ? L(' ist dran.', ' 的回合。') : L(' überlegt …', ' 正在思考……'));
-      if (me && !me.alive) st.append(me.waiting ? L(' (Du spielst ab der nächsten Runde mit.)', '（你下一轮加入。）') : L(' (Du bist raus und schaust zu.)', '（你出局了。）'));
+      st.append(b, V.step === 'draw' ? L(' ist dran.', ' 的回合。', "'s turn.") : L(' überlegt …', ' 正在思考……', ' is thinking …'));
+      if (me && !me.alive) st.append(me.waiting ? L(' (Du spielst ab der nächsten Runde mit.)', '（你下一轮加入。）', ' (You join next round.)') : L(' (Du bist raus und schaust zu.)', '（你出局了。）', " (You're out and watching.)"));
     }
   }
   // Wahl-Knöpfe (Ziel / Grillenberger-Kombo)
@@ -1599,16 +1696,28 @@ function render(){
   if (choosing && !eligibleV(sc).length) choosing = false;          // z. B. Wanunanu, aber keiner hat Karten
   const comboShow = myTurn && V.step === 'act' && grill3 && sc === GRILL;
   const optShow = myTurn && V.step === 'act' && sc !== null && sc !== -1 && !!CARDS[sc].options;
-  $('playBtn').disabled = !(myTurn && V.step === 'act' && sel !== null) || choosing || optShow;
+  const crashShow = myTurn && V.step === 'act' && sc !== null && sc !== -1 && !!CARDS[sc].pick && V.pool.length > 0;
+  $('playBtn').disabled = !(myTurn && V.step === 'act' && sel !== null) || choosing || optShow || crashShow;
   const tb = $('targets'); tb.innerHTML = '';
-  tb.classList.toggle('hidden', !choosing && !comboShow && !optShow);
+  tb.classList.toggle('hidden', !choosing && !comboShow && !optShow && !crashShow);
+  tb.classList.toggle('crash', crashShow);
+  if (crashShow) {
+    const hdr = document.createElement('div'); hdr.className = 'crashhdr';
+    hdr.textContent = L('🦘 Welche Karte willst du nutzen?', '🦘 选一张牌', '🦘 Which card do you want to use?');
+    tb.appendChild(hdr);
+    V.pool.forEach(k => {
+      const b = document.createElement('button'); b.className = 'crashpick'; b.textContent = `${CARDS[k].emoji} ${cardName(k)}`; b.title = cardEff(k);
+      b.onclick = () => { const i = sel; sel = null; act('play', i, k); };
+      tb.appendChild(b);
+    });
+  }
   if (optShow) CARDS[sc].options.forEach((o, k) => {
-    const b = document.createElement('button'); b.textContent = o;
+    const b = document.createElement('button'); b.textContent = EN() && !ZH() ? DOG_EN[k] : o;
     b.onclick = () => { const i = sel; sel = null; act('play', i, k); };
     tb.appendChild(b);
   });
   if (comboShow) {
-    const b = document.createElement('button'); b.textContent = L('🦗🦗🦗 Alle 3 spielen', '🦗🦗🦗 三张一起出');
+    const b = document.createElement('button'); b.textContent = L('🦗🦗🦗 Alle 3 spielen', '🦗🦗🦗 三张一起出', '🦗🦗🦗 Play all 3');
     b.onclick = () => { sel = null; act('play', 0, undefined, true); };
     tb.appendChild(b);
   }
@@ -1619,10 +1728,11 @@ function render(){
   });
   const dirEl = $('dirInfo');
   dirEl.classList.toggle('hidden', V.phase !== 'play');
-  dirEl.textContent = (V.dir === 1 ? L('↻ Spielrichtung: im Uhrzeigersinn', '↻ 方向：顺时针') : L('↺ Spielrichtung: gegen den Uhrzeigersinn', '↺ 方向：逆时针'))
-    + (V.leutrim ? ` · 👻 ${L('Leutrim ist verschwunden …', '洛伊特里姆消失了……')}` : '')
-    + (V.rittner ? ` · 👨‍💼 Rittner: noch ${V.rittner} Züge` : '')
-    + (V.pattern ? ` · 🌀 noch ${V.pattern} Züge` : '')
+  dirEl.textContent = (V.dir === 1 ? L('↻ Spielrichtung: im Uhrzeigersinn', '↻ 方向：顺时针', '↻ Direction: clockwise') : L('↺ Spielrichtung: gegen den Uhrzeigersinn', '↺ 方向：逆时针', '↺ Direction: counter-clockwise'))
+    + (V.leutrim ? ` · 👻 ${L('Leutrim ist verschwunden …', '洛伊特里姆消失了……', 'Leutrim has vanished …')}` : '')
+    + (V.rittner ? L(` · 👨‍💼 Rittner: noch ${V.rittner} Züge`, ` · 👨‍💼 ${V.rittner}`, ` · 👨‍💼 Rittner: ${V.rittner} turns left`) : '')
+    + (V.pattern ? L(` · 🌀 noch ${V.pattern} Züge`, ` · 🌀 ${V.pattern}`, ` · 🌀 ${V.pattern} turns left`) : '')
+    + (V.wa ? ` · 💬 WHATSAPP ${V.wa}` : '')
     + (V.btc ? ` · 🪙 ${V.btc}/20` : '');
 
   $('drawBtn').disabled = !(myTurn && V.step === 'draw');
@@ -1632,7 +1742,7 @@ function render(){
   ['drawBtn','playBtn','passBtn'].forEach(id => $(id).classList.toggle('hidden', !inGame && isHost));
   const sb = $('startBtn');
   sb.classList.toggle('hidden', !isHost || inGame);
-  sb.textContent = V.phase === 'over' ? 'Neue Runde' : 'Spiel starten';
+  sb.textContent = V.phase === 'over' ? L('Neue Runde', '新一轮', 'New round') : L('Spiel starten', '开始', 'Start game');
   sb.disabled = players < 2;
   const bb = $('botBtn');
   bb.classList.toggle('hidden', !isHost || inGame);
@@ -1657,9 +1767,9 @@ $('startBtn').addEventListener('click', () => { if (isHost) startGame(); });
 $('botBtn').addEventListener('click', () => addBot());
 $('copyBtn').addEventListener('click', async () => {
   const link = location.href.split('#')[0] + '#' + roomCode;
-  try { await navigator.clipboard.writeText(link); $('copyBtn').textContent = '✓ Kopiert!'; }
+  try { await navigator.clipboard.writeText(link); $('copyBtn').textContent = EN() ? '✓ Copied!' : '✓ Kopiert!'; }
   catch(e) { $('copyBtn').textContent = link; }
-  setTimeout(() => $('copyBtn').textContent = 'Einladungslink kopieren', 2500);
+  setTimeout(() => $('copyBtn').textContent = EN() ? 'Copy invite link' : 'Einladungslink kopieren', 2500);
 });
 document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || !V) return;
@@ -1718,21 +1828,22 @@ const LORE = {
   47:'Löst zwei zufällige Effekte anderer Karten auf einmal aus. Kommt nur durch 📜 Birkichts Pläne.',
   48:'Streitet mit allen, die blaue Herzen 💙 haben (durch 🥓 Speck). Jeder von ihnen bekommt zufällig ein 👾 Is this game modded? auf die Hand – oder eine 🚬 Zigaretten-Pause (−1 ❤️ und aussetzen). Hat keiner blaue Herzen, passiert nichts.',
 };
-const KIND = c => [2,3,7,24,16,17,0,42,43].includes(c) ? 'atk' : [1,9,22,33,31,37].includes(c) ? 'heal' : [4,15].includes(c) ? 'def' : [11,35,21,38].includes(c) ? 'evil' : 'chaos';
+const KIND = c => [2,3,7,24,16,17,0,42,43,50,53].includes(c) ? 'atk' : [1,9,22,33,31,37].includes(c) ? 'heal' : [4,15].includes(c) ? 'def' : [11,35,21,38].includes(c) ? 'evil' : 'chaos';
+const kindName = k => EN() ? KIND_NAME_EN[k] : KIND_NAME[k];
 const KIND_NAME = { atk:'Angriff', heal:'Heilung', def:'Schutz', evil:'Gefährlich', chaos:'Chaos' };
 let loreIdx = 0, rx = -8, ry = -20, vx = 0, vy = 0, dragging = false, lastX = 0, lastY = 0, idle = 0, loreRaf = null;
 
 function cardFace(c){
   const k = KIND(c);
-  return `<div class="f3in ${k}"><div class="f3kind">${KIND_NAME[k]}</div><div class="f3emoji">${CARDS[c].emoji}</div>`
-       + `<div class="f3name">${esc(CARDS[c].text)}</div><div class="f3eff">${esc(CARDS[c].eff)}</div><div class="f3no">#${String(c+1).padStart(2,'0')}</div><div class="shine"></div></div>`;
+  const pic = hasPic(c) ? `<div class="f3pic" style="background-image:url(img/cards/${c}.jpg)"></div>` : `<div class="f3emoji">${CARDS[c].emoji}</div>`;
+  return `<div class="f3in ${k}${hasPic(c) ? ' haspic' : ''}"><div class="f3kind">${kindName(k)}</div>${hasPic(c) ? `<div class="f3name">${esc(cardName(c))}</div>${pic}` : `${pic}<div class="f3name">${esc(cardName(c))}</div>`}<div class="f3eff">${esc(cardEff(c))}</div><div class="f3no">#${String(c+1).padStart(2,'0')}</div><div class="shine"></div></div>`;
 }
 function openLore(){
   const g = $('loreGrid'); g.innerHTML = '';
   CARDS.forEach((card, c) => {
     const b = document.createElement('button'); b.className = 'lore-item ' + KIND(c);
     b.innerHTML = `<span class="li-emoji">${card.emoji}</span><span class="li-name"></span>`;
-    b.querySelector('.li-name').textContent = card.text;
+    b.querySelector('.li-name').textContent = cardName(c);
     b.onclick = () => showLoreCard(c);
     g.appendChild(b);
   });
@@ -1744,14 +1855,18 @@ function showLoreCard(c){
   loreIdx = c;
   $('loreGrid').classList.add('hidden'); $('loreDetail').classList.remove('hidden');
   $('front3').innerHTML = cardFace(c);
-  $('loreName').textContent = `${CARDS[c].emoji} ${CARDS[c].text}`;
-  $('loreEff').textContent = LORE[c] || CARDS[c].eff;
+  $('loreName').textContent = `${CARDS[c].emoji} ${cardName(c)}`;
+  $('loreEff').textContent = loreText(c) || cardEff(c);
   const total = DECK_MIX.reduce((a, b) => a + b, 0), n = DECK_MIX[c];
-  $('loreStats').textContent = c === SCHOKO ? 'Chance: 0,01 % pro gezogener Karte'
+  $('loreStats').textContent = EN()
+    ? (c === SCHOKO ? 'Chance: 0.01 % per drawn card' : n ? `In the deck: ${n} of ${total} cards · ${(100*n/total).toFixed(1)} % per turn`
+      : c === BTC ? 'Only enters the deck through 📈 Snowball system (20 of them)' : c === CIG ? 'Only in the deck while 👨‍💼 Mr. Rittner is active (4 of them)'
+      : c === MINE ? 'Only enters the deck through 💣 Mine?' : c === PLAN ? "Only through 📜 Birkicht's plans" : c === TASK || c === SOLUTION ? 'Only through 📝 Mr. Barthel' : 'Not in the deck')
+    : c === SCHOKO ? 'Chance: 0,01 % pro gezogener Karte'
     : n ? `Im Stapel: ${n} von ${total} Karten · ${(100*n/total).toFixed(1).replace('.', ',')} % pro Zug`
     : c === BTC ? 'Kommt erst durch 📈 Schneeball System in den Stapel (20 Stück)' : c === CIG ? 'Liegt nur während 👨‍💼 Herr Rittner im Stapel (4 Stück)'
     : c === MINE ? 'Kommt nur durch 💣 Miene? in den Stapel' : c === PLAN ? 'Kommt nur durch 📜 Birkichts Pläne' : c === TASK || c === SOLUTION ? 'Kommt nur durch 📝 Herr Barthel' : 'Liegt nicht im Stapel';
-  $('loreKind').textContent = KIND_NAME[KIND(c)]; $('loreKind').className = 'lore-kind ' + KIND(c);
+  $('loreKind').textContent = kindName(KIND(c)); $('loreKind').className = 'lore-kind ' + KIND(c);
   rx = -8; ry = -200; vx = 0; vy = 0; idle = 0;                        // kleine Einflug-Drehung
   if (!loreRaf) loreRaf = requestAnimationFrame(spin);
   $('loreDetail').scrollTop = 0;
@@ -1823,15 +1938,16 @@ function pullCard(pack, minRare){
 }
 function updateCollection(){
   const n = loadCollection().size;
-  $('collection').textContent = `📚 Deine Sammlung: ${n} von ${CARDS.length} Karten entdeckt` + (n === CARDS.length ? ' – ALLE! 🏆' : '');
+  $('collection').textContent = EN() ? `📚 Your collection: ${n} of ${CARDS.length} cards discovered` + (n === CARDS.length ? ' – ALL! 🏆' : '')
+    : `📚 Deine Sammlung: ${n} von ${CARDS.length} Karten entdeckt` + (n === CARDS.length ? ' – ALLE! 🏆' : '');
 }
 function openBooster(){
   const box = $('packChoice'); box.innerHTML = '';
   PACKS.forEach((pk, i) => {
     const b = document.createElement('button'); b.className = 'pack small';
     b.style.setProperty('--c1', pk.c1); b.style.setProperty('--c2', pk.c2);
-    b.innerHTML = `<span class="pk-star">✦</span><span class="pk-name"></span><span class="pk-sub">5 Karten</span>`;
-    b.querySelector('.pk-name').textContent = pk.name;
+    b.innerHTML = `<span class="pk-star">✦</span><span class="pk-name"></span><span class="pk-sub">${EN() ? '5 cards' : '5 Karten'}</span>`;
+    b.querySelector('.pk-name').textContent = EN() ? PACK_EN[i] : pk.name;
     b.onclick = () => showPack(i);
     box.appendChild(b);
   });
@@ -1845,8 +1961,8 @@ function showPack(i){
   const pk = PACKS[i], art = $('packArt');
   $('packChoice').classList.add('hidden'); $('packOpen').classList.remove('hidden');
   art.className = 'pack big shake'; art.style.setProperty('--c1', pk.c1); art.style.setProperty('--c2', pk.c2);
-  art.innerHTML = `<span class="pk-star">✦</span><span class="pk-name"></span><span class="pk-sub">Antippen zum Aufreißen!</span>`;
-  art.querySelector('.pk-name').textContent = pk.name;
+  art.innerHTML = `<span class="pk-star">✦</span><span class="pk-name"></span><span class="pk-sub">${EN() ? 'Tap to tear it open!' : 'Antippen zum Aufreißen!'}</span>`;
+  art.querySelector('.pk-name').textContent = EN() ? PACK_EN[i] : pk.name;
   art.classList.remove('hidden');
   $('packCards').innerHTML = ''; $('packBtns').classList.add('hidden'); $('packHint').textContent = '';
   art.onclick = () => tearPack(i);
@@ -1865,17 +1981,17 @@ function tearPack(i){
       const r = RARITY(c), isNew = !coll.has(c);
       const w = document.createElement('div'); w.className = `bwrap r-${r}`; w.style.animationDelay = `${k * 0.12}s`;
       const el = cardEl(c); el.classList.remove('flipped', 'flat');
-      const tag = document.createElement('div'); tag.className = 'rtag'; tag.textContent = RAR_NAME[r];
+      const tag = document.createElement('div'); tag.className = 'rtag'; tag.textContent = EN() ? RAR_NAME_EN[r] : RAR_NAME[r];
       w.append(el, tag);
-      if (isNew) { const nb = document.createElement('div'); nb.className = 'newbadge'; nb.textContent = 'NEU!'; w.appendChild(nb); }
+      if (isNew) { const nb = document.createElement('div'); nb.className = 'newbadge'; nb.textContent = EN() ? 'NEW!' : 'NEU!'; w.appendChild(nb); }
       w.onclick = () => {
         if (el.classList.contains('flipped')) return showLoreFromPack(c);
         el.classList.add('flipped'); w.classList.add('open'); setTimeout(() => el.classList.add('flat'), 560); coll.add(c); saveCollection(coll); updateCollection();
-        if (++flipped === cards.length) { $('packBtns').classList.remove('hidden'); $('packHint').textContent = 'Tipp auf eine Karte, um sie in der Karten-Lore anzusehen.'; }
+        if (++flipped === cards.length) { $('packBtns').classList.remove('hidden'); $('packHint').textContent = EN() ? 'Tap a card to see it in the card lore.' : 'Tipp auf eine Karte, um sie in der Karten-Lore anzusehen.'; }
       };
       box.appendChild(w);
     });
-    $('packHint').textContent = 'Tipp die Karten an, um sie aufzudecken!';
+    $('packHint').textContent = EN() ? 'Tap the cards to reveal them!' : 'Tipp die Karten an, um sie aufzudecken!';
   }, 550);
 }
 function showLoreFromPack(c){ closeBooster(); openLore(); showLoreCard(c); }
@@ -1891,6 +2007,8 @@ const MODE_INFO = {
   classic:'Nur die ersten Karten #1 bis #21 – wie am Anfang.',
   normal:'Alle Karten.',
   chaos:'Alle Chaos-Karten (lila) kommen dreimal so oft.',
+  blind:'Alle Karten sind verdeckt – keiner weiß, was er spielt.',
+  quick:'Schnellere Runden: jeder hat nur 2 ❤️, Angriffskarten kommen doppelt so oft und Bots spielen schneller.',
   roulette:'Jeder hat 1 ❤️ und nur 1 Kartenplatz – gezogene Karten müssen sofort gespielt werden. Im Stapel: 5 Prüfungsaufgaben pro Spieler und genau eine Mine 💥.',
 };
 function openDeckCfg(){ $('deckcfg').classList.remove('hidden'); document.body.style.overflow = 'hidden'; renderDeckCfg(); }
@@ -1902,7 +2020,7 @@ function renderDeckCfg(){
     const b = document.createElement('button'); b.className = 'modebtn' + (k === mode ? ' on' : ''); b.textContent = name;
     b.onclick = () => setMode(k); mb.appendChild(b);
   });
-  $('modeInfo').textContent = MODE_INFO[mode];
+  $('modeInfo').textContent = EN() ? MODE_INFO_EN[mode] : MODE_INFO[mode];
   const g = $('deckGrid'); g.innerHTML = '';
   const roulette = mode === 'roulette';
   $('deckGridWrap').classList.toggle('hidden', roulette);
@@ -1914,12 +2032,12 @@ function renderDeckCfg(){
     if (active) on++;
     const b = document.createElement('button');
     b.className = 'lore-item deckitem ' + KIND(k) + (active ? '' : ' off') + (outOfMode ? ' locked' : '');
-    b.innerHTML = `<span class="li-emoji">${CARDS[k].emoji}</span><span class="li-name"></span><span class="li-state">${outOfMode ? 'nicht im Modus' : active ? '✓ drin' : '✕ raus'}</span>`;
-    b.querySelector('.li-name').textContent = CARDS[k].text;
+    b.innerHTML = `<span class="li-emoji">${CARDS[k].emoji}</span><span class="li-name"></span><span class="li-state">${outOfMode ? (EN() ? 'not in mode' : 'nicht im Modus') : active ? (EN() ? '✓ in' : '✓ drin') : (EN() ? '✕ out' : '✕ raus')}</span>`;
+    b.querySelector('.li-name').textContent = cardName(k);
     if (!outOfMode) b.onclick = () => toggleCard(k);
     g.appendChild(b);
   });
-  $('deckCount2').textContent = `${on} von ${cards.length} Karten im Deck`;
+  $('deckCount2').textContent = EN() ? `${on} of ${cards.length} cards in the deck` : `${on} von ${cards.length} Karten im Deck`;
 }
 (function initDeckCfg(){
   $('deckBtn').onclick = openDeckCfg;
@@ -1927,6 +2045,237 @@ function renderDeckCfg(){
   $('deckAllOn').onclick = () => { if (isHost && S.phase !== 'play') { S.cfg.off = []; broadcast(); renderDeckCfg(); } };
   $('deckAllOff').onclick = () => { if (isHost && S.phase !== 'play') { S.cfg.off = CARDS.map((_, k) => k).filter(k => DECK_MIX[k] > 0 || k === BTC || k === CIG); broadcast(); renderDeckCfg(); } };
 })();
+// ================= SPRACHE (Deutsch / English) & KARTENBILDER – jeder stellt das für sich ein =================
+let LANG = 'de', PICS = true;
+try { LANG = localStorage.getItem('dk-lang') === 'en' ? 'en' : 'de'; PICS = localStorage.getItem('dk-pics') !== '0'; } catch(e) {}
+const EN = () => LANG === 'en';
+const CARD_IMG = { 3:1, 4:1, 5:1, 9:1, 15:1, 17:1, 35:1 };            // Karten mit Bild (img/cards/<nr>.jpg)
+const hasPic = c => PICS && CARD_IMG[c];
+const CARD_EN = [
+  ["You're infected","Next player: one heart turns green"],["I hate my wife","For you: heals green or +1 ❤️"],["You're dead","Next player loses 1 ❤️"],
+  ["IYAAAH","EVERYONE loses 1 ❤️ – you too!"],["That's not okay","Shield 🛡️: blocks the next attack"],["I don't care","All hand cards get swapped randomly"],
+  ["Kosta","Everyone puts their cards back on the deck"],["Mr. Birkicht","Pick a player: they lose 1 ❤️"],["Janek","Pick a player: they skip a turn"],
+  ["Cat with big lips","Heals ALL players"],["Leon","The play direction reverses"],["Chocolate kiss","Everyone dies. Nobody wins."],
+  ["Furry Baddie","The next player's next card stays secret ❓"],["Goth Baddie","All cards get hidden and randomly redealt"],["Mr. Günther","The game is in Chinese for 3 rounds"],
+  ["Meowskulls","The next attack on you bounces back"],["Grillenberger","Does nothing … unless you have 3: 3 ❤️ damage!"],["Freddy Fazebear","Trap: next player loses 1 ❤️ when they play a card. Disguised!"],
+  ["Goonnectet","Share damage, healing & status effects with a player for a round"],["Is this game modded?","The background changes"],["Pascal","Disguises itself in your hand. Played: random effect of another card"],
+  ["Kevin's pizza rolls","All your hearts get infected 💚"],["Such a big döner skewer","Heals everyone 1 ❤️ – right after Leon 3 ❤️"],["Wanunanuninuninu","Steal a card from a player"],
+  ["Exploding chair","Pick: they lose 1 ❤️ and skip a turn 💥"],["Törke","Draw two cards"],["Bacon","All your hearts turn blue 💙 (nothing else happens)"],
+  ["Leutrim","Vanishes for 1–20 turns, then steals a card for you"],["RCD","50/50: everyone +2 ❤️ or everyone −2 ❤️"],["Mr. Barthel","Fills all hands with exam tasks. 20 %: someone gets the solution"],
+  ["Exam task","No effect"],["Solution","You get “I hate my wife”, all exam tasks disappear"],["I'm smarter anyway","All card chances get shuffled – until someone wins"],
+  ["Beer","+1 ❤️ for you. From the 4th beer per round: −1 ❤️"],["Ginger please","Your hearts turn orange. EVERYONE's next card stays secret ❓"],["Clownchan","Hot potato! Every turn: 5 % death. Play = next player gets it"],
+  ["Macjucie","Next player randomly gets 💀, 💍, 🛡️ or 🦠"],["Mr. Rittner","20 rounds: healing cards twice as often – cigarette breaks too"],["Cigarette break","On draw: −1 ❤️ and your turn is over"],
+  ["Snowball system","Everyone gets a döner (or is it Kevin's pizza rolls?). Sometimes: Bitcoin for you"],["Bitcoin","No effect … after 20 Bitcoin from everyone: everyone +1 ❤️"],["That's a dog","You choose: shoot the dog or Sandro tames it"],
+  ["Mine?","Hides a mine in the next 30 cards"],["Mine","Whoever draws it loses 1 ❤️"],["Let it ride","3 rounds: good cards way more often – or a hand full of exam tasks"],
+  ["Pussy Pattern","3 rounds: Modded & Bitcoin come more often – and get played instantly"],["Birkicht's plans","You get a secret plan you can't read"],["Birkicht's secret plan","Two random effects of other cards at once"],
+  ["Grigori","Argues with everyone who has blue hearts 💙: 👾 or 🚬"],["Crash Badicoot","Use the effect of any card you choose"],["Fentanyl","Pick a player and infect them 🦠"],
+  ["Boing","Next player automatically plays a random card"],["Go fuck yourself","Everyone else skips a turn"],["Pretzel bites","Next player has to play ALL their cards"],["WHATSAPP","Everything is green for 3 rounds 💚"],
+];
+const DOG_EN = ["🔫 Shoot the dog", "🤠 Sandro tames it"];
+const cardName = c => ZH() ? CARDS[c].zh : EN() ? CARD_EN[c][0] : CARDS[c].text;
+const cardEff  = c => ZH() ? CARDS[c].zeff : EN() ? CARD_EN[c][1] : CARDS[c].eff;
+const LORE_EN = {
+  0:'Hits the next player: one of their hearts turns green 💚. On their turn after next it is gone – unless they heal first.',
+  1:'Works on you: a green heart turns red again. If you are not infected, you get 1 ❤️ back (max 3).',
+  2:'The next player loses 1 ❤️ right away. A shield 🛡️ blocks it, Meowskulls 😼 bounces it back.',
+  3:'EVERYONE loses 1 ❤️ – you too! A shield blocks. Whoever has Meowskulls is spared and you lose an extra heart.',
+  4:'You get a shield 🛡️. It blocks the next attack on you and is then gone. You can only have one.',
+  5:'All hand cards are swapped randomly. Everyone gets someone else\'s cards.',
+  6:'All players put their collected cards back on the deck. Then it gets shuffled.',
+  7:'Pick a player – they lose 1 ❤️.', 8:'Pick a player – they have to skip their next turn 😴.',
+  9:'Heals ALL players: a green heart turns red, otherwise +1 ❤️.',
+  10:'The play direction reverses. Right after it, a 🥙 döner skewer even heals 3 ❤️. With only two players left, you get another turn.',
+  11:'Everyone dies. Nobody wins. Not in the deck – only appears with a 0.01 % chance when drawing.',
+  12:'The next card the next player draws stays secret ❓ – even to them.',
+  13:'All hand cards are collected, shuffled and redealt face down ❓. Everyone keeps the same amount.',
+  14:'The whole game is in Chinese 🀄 for 3 rounds.', 15:'The next attack on you bounces back to whoever played it 😼.',
+  16:'Does nothing … unless you have 3 of them: then you play all at once and the next player loses 3 ❤️. Careful: a 🎭 Pascal can disguise itself as Grillenberger!',
+  17:'A disguised trap: if the next player plays a card on their turn, they lose 1 ❤️. Until then the others see a random other card instead of Freddy.',
+  18:'Pick a player. Until your next turn you both share all damage, healing and status effects (shield, Meowskulls, infection, skipping …) 🔗.',
+  19:'Is this game modded?! The background changes for everyone – every picture only once per session.',
+  20:'Disguises itself in your hand as another card (70 % Grillenberger). The others see 🎭 on your player tile – you don\'t. Played: triggers the effect of a random other card.',
+  21:'Looks like a 🥙 döner skewer in your hand. Played: ALL your hearts get infected 💚 – heal quickly!',
+  22:'Heals everyone 1 ❤️. If 🔄 Leon was played right before, it heals everyone 3 ❤️.',
+  23:'Pick a player and steal a random card from them 🦝.', 24:'Pick a player: they lose 1 ❤️ AND skip a turn 💥.',
+  25:'You draw two cards (up to 3 in your hand).', 26:'All your hearts turn blue 💙. Nothing else happens.',
+  27:'Vanishes for 1 to 20 turns 👻. When he comes back, he steals a card from a random player for you. If they have none, they get healed instead.',
+  28:'50/50: either everyone gets 2 ❤️ – or the RCD explodes and everyone loses 2 ❤️ ⚡.',
+  29:'Fills every player\'s hand with 📄 exam tasks. With a 20 % chance someone gets the 🔑 solution instead.',
+  30:'No effect. Only comes into play through 📝 Mr. Barthel.',
+  31:'Whoever plays it gets rid of all 📄 exam tasks and gets 💍 “I hate my wife”. Only comes into play through 📝 Mr. Barthel.',
+  32:'The chances of all cards are randomly redistributed and the deck reshuffled – until someone wins 🤓.',
+  33:'The first 3 beers per round give 1 ❤️ each. From the 4th beer you lose 1 ❤️ every time 🥴.',
+  34:'Your hearts turn orange 🧡 (does nothing). Also, the next card ALL players draw stays secret ❓.',
+  35:'Hot potato! On every turn change: 5 % chance its owner is out immediately (the clown disappears with them). Play it and the next player gets it – with a full hand it replaces a card.',
+  36:'The next player randomly gets one of these effects: 💀 −1 ❤️, 💍 healing, 🛡️ shield or 🦠 infection.',
+  37:'For 20 rounds healing cards (💍 😽 🥙 🍺) come twice as often – but 🚬 cigarette breaks too.',
+  38:'Not played: whoever draws it loses 1 ❤️ right away and their turn is over. Only in the deck while 👨‍💼 Mr. Rittner is active.',
+  39:'Everyone gets a 🥙 döner skewer – or Kevin\'s pizza rolls 🍕, which look exactly the same. With a 50 % chance your hand also gets filled with 🪙 Bitcoin.',
+  40:'No effect … once 20 Bitcoin have been played by everyone together, everyone gets 1 ❤️. The counter is shown at the top. Only in the deck after someone played 📈 Snowball system – then exactly 20.',
+  41:'When you play it, you choose: 🔫 shoot the dog – nothing happens. Or 🤠 Sandro tames it – 80 %: you get infected, 20 %: you get healed.',
+  42:'Hides a 💥 mine somewhere in the next 30 cards of the deck. Whoever draws it loses 1 ❤️.',
+  43:'The hidden mine. Only comes into the deck through 💣 Mine?. A shield blocks it, Meowskulls bounces it back to whoever planted it.',
+  44:'50/50 for 3 rounds: either you draw good cards way more often 🍀 – or your hand is full of 📄 exam tasks (your current cards get replaced too).',
+  45:'For 3 rounds 👾 Modded and 🪙 Bitcoin come way more often – and get played instantly when someone draws them.',
+  46:'You get Birkicht\'s secret plan 🗺️ – face down, you can\'t read it.', 47:'Triggers two random effects of other cards at once. Only through 📜 Birkicht\'s plans.',
+  48:'Argues with everyone who has blue hearts 💙 (from 🥓 Bacon). Each of them randomly gets a 👾 Is this game modded? in their hand – or a 🚬 cigarette break (−1 ❤️ and skip). If nobody has blue hearts, nothing happens.',
+  49:'You pick any card – its effect happens as if you had played it (except 🍫 Chocolate kiss). If it needs a target, it is chosen randomly.',
+  50:'Pick a player and infect them 🦠: one of their hearts turns green. Shield and Meowskulls work against it.',
+  51:'The next player automatically plays a random card from their hand – with all its effects, targets are random.',
+  52:'Everyone except you skips their next turn.',
+  53:'The next player has to play ALL the cards in their hand – all effects happen, targets are random.',
+  54:'For 3 rounds the whole game is green 💚 – like Mr. Günther, but in green.',
+};
+Object.assign(LORE, {
+  49:'Du suchst dir eine beliebige Karte aus – ihr Effekt passiert, als hättest du sie gespielt (außer 🍫 Schokokuss). Braucht sie ein Ziel, wird es zufällig bestimmt.',
+  50:'Wähl einen Spieler und infizier ihn 🦠: Eins seiner Herzen wird grün. Schild und Meowskulls helfen dagegen.',
+  51:'Der nächste Spieler spielt automatisch eine zufällige Karte von seiner Hand – mit allen Effekten, Ziele werden zufällig bestimmt.',
+  52:'Alle außer dir setzen ihre nächste Runde aus.',
+  53:'Der nächste Spieler muss ALLE Karten auf seiner Hand spielen – alle Effekte passieren, Ziele werden zufällig bestimmt.',
+  54:'3 Runden lang ist das ganze Spiel grün 💚 – wie bei Herr Günther, nur in Grün.',
+});
+LORE[10] = 'Die Spielrichtung dreht sich um. Direkt danach heilt ein 🥙 Dönerspieß sogar um 3 ❤️. Sind nur noch zwei Spieler übrig, bist du nochmal dran.';
+LORE[18] = 'Du wählst einen Spieler. Bis zu deinem nächsten Zug teilt ihr euch jeden Schaden, jede Heilung und alle Status-Effekte (Schild, Meowskulls, Infektion, Aussetzen …) 🔗.';
+const loreText = c => EN() ? LORE_EN[c] : LORE[c];
+const MODE_INFO_EN = {
+  classic:'Only the first cards #1 to #21 – like in the beginning.', normal:'All cards.',
+  chaos:'All chaos cards (purple) come three times as often.', blind:'All cards are face down – nobody knows what they are playing.',
+  quick:'Faster rounds: everyone has only 2 ❤️, attack cards come twice as often and bots play faster.',
+  roulette:'Everyone has 1 ❤️ and only 1 card slot – drawn cards must be played right away. In the deck: 5 exam tasks per player and exactly one mine 💥.',
+};
+const KIND_NAME_EN = { atk:'Attack', heal:'Healing', def:'Protection', evil:'Dangerous', chaos:'Chaos' };
+const RAR_NAME_EN = { common:'Common', uncommon:'Uncommon', rare:'Rare', legendary:'Legendary', mythic:'MYTHIC' };
+const PACK_EN = ['Attack pack', 'Healing pack', 'Protection pack', 'Chaos pack', 'Danger pack', 'Gold pack'];
+
+// Spielverlauf übersetzen: der Raum-Ersteller schreibt ihn auf Deutsch, hier wird er für englische Spieler umformuliert
+const TR = [
+  [/👻 Leutrim taucht wieder auf! (.+?) hat keine Karten – dafür wird (.+?) geheilt/g, '👻 Leutrim is back! $1 has no cards – so $2 gets healed'],
+  [/ wirft es mit Meowskulls 😼 zurück – aber (.+?) blockt mit dem Schild/g, ' bounces it back with Meowskulls 😼 – but $1 blocks with the shield'],
+  [/(\d+) Herzen/g, '$1 hearts'], [/1 Herz\b/g, '1 heart'], [/\bHerzen übrig/g, 'hearts left'], [/ übrig\)/g, ' left)'],
+  [/ verliert /g, ' loses '], [/ ist raus!/g, ' is out!'], [/ ist infiziert – ein Herz wird grün/g, ' is infected – a heart turns green'],
+  [/ ist infiziert – aber alle Herzen sind schon grün/g, ' is infected – but all hearts are already green'],
+  [/ muss die nächste Runde aussetzen/g, ' has to skip the next turn'], [/ blockt mit dem Schild/g, ' blocks with the shield'],
+  [/ wirft es mit Meowskulls 😼 zurück – ins Leere/g, ' bounces it back with Meowskulls 😼 – into nothing'],
+  
+  [/ wirft es mit Meowskulls 😼 zurück/g, ' bounces it back with Meowskulls 😼'], [/ wirft es zurück 😼/g, ' bounces it back 😼'], [/ blockt 🛡️/g, ' blocks 🛡️'],
+  [/ALLE verlieren 1 heart!/g, 'EVERYONE loses 1 heart!'], [/ALLE werden geheilt/g, 'EVERYONE gets healed'], [/ALLE sterben\. 🍫 Niemand gewinnt\./g, 'EVERYONE dies. 🍫 Nobody wins.'],
+  [/wird geheilt – ein grünes Herz wird wieder rot/g, 'gets healed – a green heart turns red again'], [/ein grünes Herz wird wieder rot/g, 'a green heart turns red again'],
+  [/bekommt 1 heart zurück/g, 'gets 1 heart back'], [/hat schon volle Herzen/g, 'already has full hearts'], [/\(Herzen schon voll\)/g, '(hearts already full)'],
+  [/bekommt ein Schild/g, 'gets a shield'], [/hat schon ein Schild/g, 'already has a shield'], [/hat jetzt Meowskulls 😼 – der nächste Angriff fliegt zurück/g, 'now has Meowskulls 😼 – the next attack bounces back'],
+  [/hat schon Meowskulls/g, 'already has Meowskulls'], [/alle Handkarten werden zufällig getauscht/g, 'all hand cards get swapped randomly'], [/aber es gibt niemanden zum Tauschen/g, 'but there is nobody to swap with'],
+  [/alle legen ihre Karten zurück auf den Stapel \((\d+) Karten\) – neu gemischt/g, 'everyone puts their cards back on the deck ($1 cards) – reshuffled'], [/aber keiner hat Karten auf der Hand/g, 'but nobody has cards'],
+  [/die Spielrichtung dreht sich um – jetzt im Uhrzeigersinn/g, 'the play direction reverses – now clockwise'], [/die Spielrichtung dreht sich um – jetzt gegen den Uhrzeigersinn/g, 'the play direction reverses – now counter-clockwise'],
+  [/(\S+)s nächste Karte bleibt geheim/g, "$1's next card stays secret"], [/alle Karten werden verdeckt und zufällig neu verteilt/g, 'all cards get hidden and randomly redealt'],
+  [/Das Spiel ist jetzt 3 Runden lang auf Chinesisch/g, 'The game is now in Chinese for 3 rounds'], [/macht … gar nichts/g, 'does … nothing at all'],
+  [/ verliert 1 heart, sobald er eine Karte legt/g, ' loses 1 heart as soon as they play a card'], [/(\S+) loses 1 heart, sobald er eine Karte legt/g, '$1 loses 1 heart as soon as they play a card'],
+  [/ und (.+?) teilen sich bis zu (\S+)s nächstem Zug Schaden, Heilung und alle Status-Effekte/g, " and $1 share damage, healing and all status effects until $2's next turn"],
+  [/Is this game modded\?! Der Hintergrund hat sich verändert …/g, 'Is this game modded?! The background has changed …'],
+  [/🎭 Pascal! Zufallseffekt/g, '🎭 Pascal! Random effect'], [/alle Herzen von (.+?) werden infiziert 💚 \(in 2 Zügen sind sie weg – schnell heilen!\)/g, "all of $1's hearts get infected 💚 (gone in 2 turns – heal quickly!)"],
+  [/direkt nach Leon! ALLE werden um 3 ❤️ geheilt/g, 'right after Leon! EVERYONE heals 3 ❤️'], [/ALLE werden um 1 ❤️ geheilt/g, 'EVERYONE heals 1 ❤️'],
+  [/aber niemand hat Karten zum Klauen/g, 'but nobody has cards to steal'], [/ klaut (.+?) eine Karte 🦝/g, ' steals a card from $1 🦝'], [/ hat keine Karten/g, ' has no cards'],
+  [/ loses 1 heart und muss aussetzen/g, ' loses 1 heart and has to skip'], [/zieht eine Karte/g, 'draws one card'], [/zieht zwei Karten/g, 'draws two cards'], [/hat keinen Platz für neue Karten/g, 'has no room for new cards'],
+  [/alle Herzen werden blau 💙 \(es ändert sich nichts\)/g, 'all hearts turn blue 💙 (nothing changes)'], [/… und verschwindet\. Wann taucht er wieder auf\?/g, '… and vanishes. When will he be back?'],
+  [/RCD löst aus und EXPLODIERT! Alle verlieren 2 Herzen/g, 'RCD trips and EXPLODES! Everyone loses 2 hearts'], [/RCD löst aus und EXPLODIERT! Alle verlieren 2 hearts/g, 'RCD trips and EXPLODES! Everyone loses 2 hearts'],
+  [/RCD schützt – alle bekommen 2 Herzen/g, 'RCD protects – everyone gets 2 hearts'], [/RCD schützt – alle bekommen 2 hearts/g, 'RCD protects – everyone gets 2 hearts'],
+  [/füllt alle Hände mit Prüfungsaufgaben 📝 \((\d+) Stück\) – hat vielleicht jemand die Lösung\?/g, 'fills all hands with exam tasks 📝 ($1 of them) – maybe someone has the solution?'], [/aber alle Hände sind schon voll/g, 'but all hands are already full'],
+  [/gibt eine Prüfungsaufgabe ab … nichts passiert/g, 'hands in an exam task … nothing happens'], [/hat die Lösung 🔑!/g, 'has the solution 🔑!'], [/(\d+) Prüfungsaufgaben? verschwinden und /g, '$1 exam task(s) disappear and '],
+  [/bekommt “Ich hasse meine Frau”/g, 'gets “I hate my wife”'], [/alle Karten-Chancen sind jetzt durcheinander \(Stapel neu gemischt\) – am häufigsten jetzt:/g, 'all card chances are scrambled now (deck reshuffled) – most common now:'],
+  [/trinkt Bier Nr\. (\d+) 🍺🥴 – zu viel! −1 heart/g, 'drinks beer no. $1 🍺🥴 – too much! −1 heart'], [/trinkt Bier Nr\. (\d+) 🍺 – /g, 'drinks beer no. $1 🍺 – '], [/aber already has full hearts/g, 'but already has full hearts'],
+  [/die Herzen werden orange 🧡 – und die nächste Karte von ALLEN bleibt geheim/g, "the hearts turn orange 🧡 – and EVERYONE's next card stays secret"],
+  [/gibt Clownchan 🤡 an (.+?) weiter – (\S+)s Hand war voll, eine Karte fliegt dafür raus!/g, "passes Clownchan 🤡 to $1 – $2's hand was full, a card got kicked out!"], [/gibt Clownchan 🤡 an (.+?) weiter!/g, 'passes Clownchan 🤡 to $1!'],
+  [/ wird geheilt ❤️/g, ' gets healed ❤️'], [/ bekommt 1 heart/g, ' gets 1 heart'], [/ bekommt ein Schild/g, ' gets a shield'], [/ hat schon ein Schild/g, ' already has a shield'],
+  [/20 Runden lang kommen Heilkarten 💍😽🥙🍺 doppelt so oft – aber auch 🚬 Zigaretten-Pausen!/g, 'For 20 rounds healing cards 💍😽🥙🍺 come twice as often – but 🚬 cigarette breaks too!'],
+  [/raucht eine 🚬 – −1 heart/g, 'smokes a 🚬 – −1 heart'], [/tritt auf eine 💥 Mine – −1 heart/g, 'steps on a 💥 mine – −1 heart'],
+  [/(\d+) Spieler bekommen einen 🥙 Dönerspieß \(… oder doch 🍕\?\)/g, '$1 players get a 🥙 döner skewer (… or is it 🍕?)'], [/aber alle Hände sind voll/g, 'but all hands are full'],
+  [/ – und (\S+)s Hand wird mit (\d+) 🪙 Bitcoin gefüllt/g, " – and $1's hand gets filled with $2 🪙 Bitcoin"], [/🪙 Bitcoin Nr\. 20! TO THE MOON 🚀 – ALLE bekommen 1 ❤️/g, '🪙 Bitcoin no. 20! TO THE MOON 🚀 – EVERYONE gets 1 ❤️'],
+  [/🪙 Bitcoin (\d+)\/20 – noch passiert nichts/g, '🪙 Bitcoin $1/20 – nothing happens yet'], [/🔫 erschießt den Hund\. Es passiert nichts\./g, '🔫 shoots the dog. Nothing happens.'],
+  [/🤠 Sandro zähmt ihn … der Hund beißt!/g, '🤠 Sandro tames it … the dog bites!'], [/🤠 Sandro zähmt ihn – braver Hund 🐕/g, '🤠 Sandro tames it – good dog 🐕'], [/heilt ein grünes Herz/g, 'heals a green heart'],
+  [/versteckt eine 💣 Mine irgendwo in den nächsten 30 Karten …/g, 'hides a 💣 mine somewhere in the next 30 cards …'],
+  [/🎰 GEWONNEN! 3 Runden lang zieht er viel öfter gute Karten/g, '🎰 WON! For 3 rounds they draw good cards way more often'], [/🎰 verloren … 3 Runden lang hat er nur 📄 Prüfungsaufgaben auf der Hand/g, '🎰 lost … for 3 rounds they only have 📄 exam tasks in hand'],
+  [/🌀 3 Runden lang kommen 👾 Modded und 🪙 Bitcoin viel öfter – und werden sofort gespielt!/g, '🌀 For 3 rounds 👾 Modded and 🪙 Bitcoin come way more often – and get played instantly!'], [/🌀 sofort gespielt/g, '🌀 played instantly'],
+  [/aber hat keinen Platz für den Plan/g, 'but has no room for the plan'], [/bekommt Birkichts Geheimplan 🗺️❓ – keiner weiß, was drinsteht/g, "gets Birkicht's secret plan 🗺️❓ – nobody knows what's in it"], [/🗺️ Der Plan:/g, '🗺️ The plan:'],
+  [/🗣️ sucht Streit … aber niemand hat blaue Herzen 💙\. Grigori zieht beleidigt ab\./g, '🗣️ looks for a fight … but nobody has blue hearts 💙. Grigori leaves offended.'], [/🗣️ streitet mit allen mit blauen Herzen:/g, '🗣️ argues with everyone with blue hearts:'],
+  [/ bekommt 👾 Is this game modded\?/g, ' gets 👾 Is this game modded?'], [/ kriegt eine 🚬 Zigaretten-Pause \(−1 ❤️, setzt aus\)/g, ' gets a 🚬 cigarette break (−1 ❤️, skips)'],
+  [/🦘 nutzt/g, '🦘 uses'], [/🏓 (.+?) muss spielen:/g, '🏓 $1 has to play:'], [/🥨 (.+?) muss alle Karten spielen:/g, '🥨 $1 has to play all cards:'], [/→ verpufft/g, '→ fizzles out'],
+  [/🖕 alle anderen \((.+?)\) setzen eine Runde aus/g, '🖕 everyone else ($1) skips a turn'], [/💬 WHATSAPP! 3 Runden lang ist alles grün/g, '💬 WHATSAPP! Everything is green for 3 rounds'],
+  [/DREIFACH-GRILLENBERGER/g, 'TRIPLE GRILLENBERGER'], [/🎭 Reingelegt! Unter den Grillenbergern war ein Pascal:/g, '🎭 Tricked! There was a Pascal among the Grillenbergers:'], [/🎭 Reingelegt! Unter den Grillenbergern waren (\d+) Pascals:/g, '🎭 Tricked! There were $1 Pascals among the Grillenbergers:'],
+  [/wurde von Freddy erwischt, bevor die Karte wirken konnte/g, 'got caught by Freddy before the card could work'], [/zu spät – das Spiel ist schon vorbei/g, 'too late – the game is already over'], [/aber es ist niemand mehr da/g, 'but nobody is left'],
+  // Systemmeldungen
+  [/🏆 (.+?) gewinnt die Runde!/g, '🏆 $1 wins the round!'], [/🤝 Keiner hat überlebt – unentschieden!/g, '🤝 Nobody survived – draw!'], [/🃏 Neue Runde! (.+?) fängt an\./g, '🃏 New round! $1 starts.'],
+  [/🔄 Der Stapel wurde neu gemischt\./g, '🔄 The deck was reshuffled.'], [/✋ (.+?) hebt die Karten auf und beendet den Zug\./g, '✋ $1 keeps their cards and ends the turn.'],
+  [/🐻 (.+?) hat keine Karte gelegt – Freddys Falle ist harmlos verpufft\./g, "🐻 $1 didn't play a card – Freddy's trap fizzled out."], [/🐻 (.+?) setzt aus – Freddys Falle verpufft\./g, "🐻 $1 skips – Freddy's trap fizzles out."],
+  [/🐻 Freddy Fazebear! Es war eine Falle von (.+?):/g, '🐻 Freddy Fazebear! It was a trap by $1:'], [/jemandem/g, 'someone'],
+  
+  [/👻 Leutrim taucht wieder auf! Er klaut (.+?) eine Karte und gibt sie (.+?)\./g, '👻 Leutrim is back! He steals a card from $1 and gives it to $2.'],
+  [/👻 Leutrim taucht wieder auf … aber niemand wartet auf ihn\. Er verschwindet für immer\./g, "👻 Leutrim is back … but nobody's waiting for him. He vanishes forever."],
+  [/💥 BOOM! (.+?) zieht eine Mine von (.+?):/g, '💥 BOOM! $1 draws a mine from $2:'], [/💥 BOOM! (.+?) zieht eine Mine:/g, '💥 BOOM! $1 draws a mine:'],
+  [/🔄 Nur noch zwei Spieler – (.+?) ist nochmal dran!/g, "🔄 Only two players left – it's $1's turn again!"],
+  [/🔗 (.+?) und (.+?) sind verbunden und teilen sich die Status-Effekte\./g, '🔗 $1 and $2 are connected and share their status effects.'],
+  [/🔗 (.+?) ist mit (.+?) verbunden und loses auch (.+?)\./g, '🔗 $1 is connected to $2 and also loses $3.'], [/🔗 (.+?) ist mit (.+?) verbunden und wird auch geheilt\./g, '🔗 $1 is connected to $2 and gets healed too.'],
+  [/🔗 Die Verbindung von (.+?) und (.+?) ist vorbei\./g, '🔗 The connection between $1 and $2 is over.'], [/😴 (.+?) setzt diese Runde aus\./g, '😴 $1 skips this turn.'],
+  [/🚬 (.+?) zieht eine Zigaretten-Pause: −1 heart \((.+?)\) und Pause – der Zug ist vorbei\./g, "🚬 $1 draws a cigarette break: −1 heart ($2) and a break – the turn is over."],
+  [/🤖 (.+?) geht\./g, '🤖 $1 leaves.'], [/🤖 (.+?) spielt mit\./g, '🤖 $1 joins.'], [/🤡 Clownchan schlägt zu! (.+?) hatte ihn auf der Hand und ist raus\./g, '🤡 Clownchan strikes! $1 had him in hand and is out.'],
+  [/🦠 Die Infektion schlägt zu: (.+?) loses (.+?)\./g, '🦠 The infection strikes: $1 loses $2.'], [/🀄 Herr Günther ist weg – das Spiel ist wieder auf Deutsch\./g, '🀄 Mr. Günther is gone – the game is back to normal.'],
+  [/🍫 Der Schokokuss hat alle erwischt – niemand gewinnt!/g, '🍫 The chocolate kiss got everyone – nobody wins!'], [/👨‍💼 Herr Rittner ist weg – die Zigaretten-Pausen verschwinden aus dem Stapel\./g, '👨‍💼 Mr. Rittner is gone – the cigarette breaks leave the deck.'],
+  [/🎮 Spielmodus:/g, '🎮 Game mode:'], [/👋 (.+?) ist da und spielt ab der nächsten Runde mit\./g, '👋 $1 is here and joins next round.'], [/👋 (.+?) ist beigetreten\./g, '👋 $1 joined.'], [/🚪 (.+?) hat den Raum verlassen\./g, '🚪 $1 left the room.'],
+  // Meldungen in der Lobby
+  [/Raum wird erstellt …/g, 'Creating room …'], [/^Verbinde …$/g, 'Connecting …'], [/Bitte gib zuerst deinen Namen ein\./g, 'Please enter your name first.'],
+  [/Keine Verbindung zum Spielserver\. Bitte Internetverbindung prüfen und nochmal versuchen\./g, 'No connection to the game server. Please check your internet and try again.'],
+  [/Bitte den 6-stelligen Raum-Code eingeben\./g, 'Please enter the 6-character room code.'], [/Kein Raum mit diesem Code gefunden\./g, 'No room found with this code.'],
+  [/Der Raum ist schon voll \((\d+) Spieler\)\./g, 'The room is already full ($1 players).'], [/Der Raum wurde geschlossen \(der Ersteller ist weg\)\./g, 'The room was closed (the host left).'],
+  [/Du warst zu lange weg und wurdest aus dem Raum genommen\. Lade die Seite neu und tritt nochmal bei\./g, 'You were away too long and got removed from the room. Reload the page and join again.'],
+  [/⚠️ Du und der Raum-Ersteller habt verschiedene Versionen des Spiels\. Bitte ALLE die Seite neu laden \(Link mit (.+?) am Ende öffnen\) und einen neuen Raum erstellen\./g, '⚠️ You and the host have different versions of the game. EVERYONE please reload the page (open the link with $1 at the end) and create a new room.'],
+  [/⚠️ Der Raum-Ersteller hat eine andere Version des Spiels\. Bitte alle die Seite neu laden\./g, '⚠️ The host has a different version of the game. Everyone please reload the page.'],
+  [/Verbindung unterbrochen – verbinde neu …/g, 'Connection lost – reconnecting …'], [/Dein Browser unterstützt keine Verschlüsselung – bitte Chrome, Safari oder Firefox aktuell verwenden\./g, 'Your browser does not support encryption – please use an up-to-date Chrome, Safari or Firefox.'],
+];
+const CARD_NAME_TR = CARDS.map((c, k) => [c.text, CARD_EN[k][0]]).filter(([a, b]) => a !== b).sort((a, b) => b[0].length - a[0].length);
+function tr(s){
+  if (!EN() || !s) return s;
+  let o = String(s).replace(/„([^“„]*)“/g, '“$1”');
+  for (const [re, rep] of TR) o = o.replace(re, rep);
+  for (const [de, en] of CARD_NAME_TR) o = o.split(`“${de}”`).join(`“${en}”`).split(de).join(en);
+  return o;
+}
+
+// statische Texte (data-en) umschalten
+function applyStatic(){
+  document.body.classList.toggle('en', EN());
+  document.documentElement.lang = EN() ? 'en' : 'de';
+  document.querySelectorAll('[data-en]').forEach(el => {
+    if (el.dataset.de === undefined) el.dataset.de = el.innerHTML;
+    el.innerHTML = EN() ? el.dataset.en : el.dataset.de;
+  });
+  document.querySelectorAll('[data-en-ph]').forEach(el => {
+    if (el.dataset.dePh === undefined) el.dataset.dePh = el.placeholder;
+    el.placeholder = EN() ? el.dataset.enPh : el.dataset.dePh;
+  });
+  document.querySelectorAll('.langbtn').forEach(b => b.textContent = EN() ? '🇩🇪 Deutsch' : '🇬🇧 English');
+  document.querySelectorAll('.picbtn').forEach(b => b.textContent = (EN() ? '🖼️ Card pictures: ' : '🖼️ Kartenbilder: ') + (PICS ? (EN() ? 'on' : 'an') : (EN() ? 'off' : 'aus')));
+  renderRulesCards();
+  ['lobbyErr', 'gameErr'].forEach(id => { const e = $(id); if (e.dataset.raw) e.textContent = tr(e.dataset.raw); });
+}
+function renderRulesCards(){
+  const box = $('rulesCards'); if (!box) return;
+  box.innerHTML = '';
+  CARDS.forEach((_, c) => {
+    const d = document.createElement('div');
+    const b = document.createElement('b'); b.textContent = `${CARDS[c].emoji} ${EN() ? CARD_EN[c][0] : CARDS[c].text}`;
+    d.append(b, ' – ' + loreText(c));
+    box.appendChild(d);
+  });
+}
+function refreshAll(){
+  applyStatic();
+  if (V) render();
+  if (!$('lore').classList.contains('hidden')) { if (!$('loreDetail').classList.contains('hidden')) showLoreCard(loreIdx); else openLore(); }
+  if (!$('booster').classList.contains('hidden')) { updateCollection(); if (!$('packChoice').classList.contains('hidden')) openBooster(); }
+  if (typeof renderDeckCfg === 'function') renderDeckCfg();
+}
+function setLang(l){ LANG = l; try { localStorage.setItem('dk-lang', l); } catch(e) {} refreshAll(); }
+function togglePics(){ PICS = !PICS; try { localStorage.setItem('dk-pics', PICS ? '1' : '0'); } catch(e) {} refreshAll(); }
+document.querySelectorAll('.langbtn').forEach(b => b.onclick = () => setLang(EN() ? 'de' : 'en'));
+document.querySelectorAll('.picbtn').forEach(b => b.onclick = togglePics);
+applyStatic();
 </script>
 </body>
 </html>
