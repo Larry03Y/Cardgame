@@ -500,7 +500,7 @@ const curMode = () => (typeof S !== 'undefined' && S && S.cfg) ? S.cfg.mode : (t
 const handMax = () => curMode() === 'roulette' ? 1 : HAND_MAX;
 const maxHearts = () => curMode() === 'roulette' ? 1 : curMode() === 'quick' ? 2 : MAX_HEARTS;
 const VERSION = 17;   // Spiel-Protokoll: bei jeder Regeländerung erhöhen – alte und neue Version können nicht zusammen spielen
-const VERSION_LABEL = '17.2';   // angezeigte Version (Bugfixes ändern nur diese Zahl)
+const VERSION_LABEL = '17.3';   // angezeigte Version (Bugfixes ändern nur diese Zahl)
 const $ = id => document.getElementById(id);
 
 const shuffle = a => { for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
@@ -2049,7 +2049,7 @@ function renderDeckCfg(){
 let LANG = 'de', PICS = true;
 try { LANG = localStorage.getItem('dk-lang') === 'en' ? 'en' : 'de'; PICS = localStorage.getItem('dk-pics') !== '0'; } catch(e) {}
 const EN = () => LANG === 'en';
-const CARD_IMG = { 3:1, 4:1, 5:1, 9:1, 12:1, 13:1, 15:1, 17:1, 35:1 };            // Karten mit Bild (img/cards/<nr>.jpg)
+const CARD_IMG = { 3:1, 4:1, 5:1, 9:1, 12:1, 15:1, 17:1, 35:1 };            // Karten mit Bild (img/cards/<nr>.jpg)
 const hasPic = c => PICS && CARD_IMG[c];
 const CARD_EN = [
   ["You're infected","Next player: one heart turns green"],["I hate my wife","For you: heals green or +1 ❤️"],["You're dead","Next player loses 1 ❤️"],
